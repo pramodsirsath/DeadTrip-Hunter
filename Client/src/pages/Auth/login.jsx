@@ -65,6 +65,8 @@ export default function Login() {
             className="w-full border px-4 py-2 rounded"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username" // ✅ Add this
+
             required
           />
           <input
@@ -73,6 +75,8 @@ export default function Login() {
             className="w-full border px-4 py-2 rounded"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password" // ✅ Add this
+
             required
           />
 

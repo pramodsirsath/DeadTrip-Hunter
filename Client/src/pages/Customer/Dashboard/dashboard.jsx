@@ -1,65 +1,102 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import {jwtDecode} from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 
 export default function CustomerDashboard() {
-
-  const [loads, setLoads] = React.useState([]);
+  const [rides, setRides] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [addresses, setAddresses] = React.useState({}); // store {rideId: {pickup, drop}}
 
-  const handleCancel = (loadId) => {
-    // Handle load cancellation logic here
-    console.log("Cancelling load:", loadId);
-    // You can make an API call to cancel the load
-    fetch(`http://localhost:3000/loads/cancel/${loadId}`, {
-      method: 'DELETE',
+  const handleCancel = (rideId) => {
+    // cancel ride API
+    fetch(`http://localhost:3000/rides/${rideId}/cancel`, {
+      method: 'PATCH',
     })
       .then(res => {
         if (res.ok) {
-          setLoads(loads.filter(load => load._id !== loadId));
-          alert("Load cancelled successfully!");
+          setRides(rides.filter(ride => ride._id !== rideId));
+          alert("Ride cancelled successfully!");
         } else {
-          alert("Failed to cancel load.");
+          alert("Failed to cancel ride.");
         }
       })
       .catch(err => {
-        console.error("Error cancelling load:", err);
-        alert("An error occurred while cancelling the load.");
+        console.error("Error cancelling ride:", err);
+        alert("An error occurred while cancelling the ride.");
       });
+  };
+
+  // Helper: fetch address from lat/lng
+const getAddress = async (lat, lng) => {
+  try {
+    const res = await fetch(
+      `http://localhost:3000/rides/api/reverse-geocode?lat=${lat}&lon=${lng}`
+    );
+    const data = await res.json();
+    return (
+      data.display_name ||
+      data.address?.city ||
+      data.address?.town ||
+      data.address?.village ||
+      "Unknown"
+    );
+  } catch (err) {
+    console.error("Error fetching address:", err);
+    return "Error";
   }
+};
 
   React.useEffect(() => {
-    const fetchLoads = async () => {
+    const fetchRides = async () => {
       try {
         const token = localStorage.getItem('token');
         const decoded = jwtDecode(token);
         const userId = decoded.id;
 
-        const res = await fetch(`http://localhost:3000/loads/getloads?userId=${userId}`);
+        const res = await fetch(`http://localhost:3000/rides/user/${userId}`);
         const data = await res.json();
-        setLoads(data);
+        setRides(data);
+
+        // Convert coordinates into addresses
+        const addressPromises = data.map(async (ride) => {
+          const [srcLng, srcLat] = ride.source?.coordinates || [];
+          const [destLng, destLat] = ride.destination?.coordinates || [];
+
+          const pickup = srcLat && srcLng ? await getAddress(srcLat, srcLng) : "N/A";
+          const drop = destLat && destLng ? await getAddress(destLat, destLng) : "N/A";
+
+          return { rideId: ride._id, pickup, drop };
+        });
+
+        const resolvedAddresses = await Promise.all(addressPromises);
+        const addrMap = {};
+        resolvedAddresses.forEach(a => {
+          addrMap[a.rideId] = { pickup: a.pickup, drop: a.drop };
+        });
+        setAddresses(addrMap);
+
       } catch (err) {
-        console.error("Failed to load posted loads:", err);
+        console.error("Failed to load rides:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLoads();
-  },[]);
+    fetchRides();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Dashboard Heading */}
         <h1 className="text-3xl font-bold mb-6 text-blue-700">Customer Dashboard</h1>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Link
-            to="/post-load"
+            to="/post-ride"
             className="bg-blue-600 text-white p-4 rounded-lg text-center hover:bg-blue-700"
           >
-            Post New Load
+            Post New Ride
           </Link>
           <Link
             to="/customer/profile"
@@ -75,78 +112,70 @@ export default function CustomerDashboard() {
           </Link>
         </div>
 
-        {/* Posted Loads Table (static data for now) */}
-         <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold mb-4">My Posted Loads</h2>
+        {/* Posted Rides Table */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">My Posted Rides</h2>
 
-      {loading ? (
-        <p>Loading...</p>
-      ) : loads.length === 0 ? (
-        <p>No loads posted yet.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto">
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="px-4 py-2">#</th>
-                <th className="px-4 py-2">Route</th>
-                <th className="px-4 py-2">Date</th>
-                <th className="px-4 py-2">Truck Type</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loads.map((load, idx) => (
-                <tr key={load._id} className="border-b">
-                  <td className="px-4 py-2">{idx + 1}</td>
-                  <td className="px-4 py-2">{load.source} → {load.destination}</td>
-                  <td className="px-4 py-2">{new Date(load.date).toLocaleDateString()}</td>
-                  <td className="px-4 py-2">{load.truckType}</td>
-                  <td className="px-4 py-2 capitalize">{load.status}</td>
-                  <td className="px-4 py-2">
-                    <button className="text-blue-600 hover:underline" onClick={() => handleCancel(load._id)}>Cancel</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {loading ? (
+            <p>Loading...</p>
+          ) : rides.length === 0 ? (
+            <p>No rides posted yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-auto">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="px-4 py-2">#</th>
+                    <th className="px-4 py-2">Pickup</th>
+                    <th className="px-4 py-2">Drop</th>
+                    <th className="px-4 py-2">Status</th>
+                    <th className="px-4 py-2">Fare</th>
+                    <th className="px-4 py-2">Action</th>
+                    <th className="px-4 py-2">View</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rides.map((ride, idx) => (
+                    <tr key={ride._id} className="border-b">
+                      <td className="px-4 py-2">{idx + 1}</td>
+                      <td className="px-4 py-2">
+                        {addresses[ride._id]?.pickup || "Loading..."}
+                      </td>
+                      <td className="px-4 py-2">
+                        {addresses[ride._id]?.drop || "Loading..."}
+                      </td>
+                      <td className="px-4 py-2 capitalize">{ride.status}</td>
+                      <td className="px-4 py-2">₹{ride.fare}</td>
+                      <td className="px-4 py-2">
+                        {ride.status === "pending" && (
+                          <button
+                            className="text-red-600 hover:underline"
+                            onClick={() => handleCancel(ride._id)}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        {ride.status === "accepted" || ride.status === "ongoing" ? (
+                          <Link
+                            to={`/track/${ride._id}`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            View
+                          </Link>
+                        ) : (
+                          <span className="text-gray-400">N/A</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
-    </div>
 
-        {/* Notifications Section */}
-        <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="text-lg font-semibold mb-2 text-yellow-800">Latest Notifications</h3>
-          <ul className="list-disc ml-5 text-sm text-yellow-700">
-            <li>New truck matched with Load #102</li>
-            <li>No return load found for Load #98. Check suggested hubs.</li>
-            <li>Your invoice for Load #95 is ready for download.</li>
-          </ul>
-        </div>
-
-        {/* Analytics Overview */}
-        <div className="mt-8 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-4">Shipment Summary</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-blue-100 p-4 rounded text-center">
-              <h3 className="text-2xl font-bold">12</h3>
-              <p className="text-sm">Total Loads</p>
-            </div>
-            <div className="bg-green-100 p-4 rounded text-center">
-              <h3 className="text-2xl font-bold">8</h3>
-              <p className="text-sm">Completed</p>
-            </div>
-            <div className="bg-yellow-100 p-4 rounded text-center">
-              <h3 className="text-2xl font-bold">2</h3>
-              <p className="text-sm">Pending</p>
-            </div>
-            <div className="bg-red-100 p-4 rounded text-center">
-              <h3 className="text-2xl font-bold">2</h3>
-              <p className="text-sm">Cancelled</p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
