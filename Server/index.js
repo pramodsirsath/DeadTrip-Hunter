@@ -2,10 +2,13 @@ const express = require("express");
 const dotenv = require("dotenv");
 const connectDB = require("./config/userdb");
 const authRoutes = require("./routes/auth.routes");
-const rideRoutes = require("./routes/rideRoutes"); 
+const rideRoutes = require("./routes/rideRoutes");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+const geoRoutes = require("./routes/geoRoutes");
+const returnLoadRoute = require("./routes/returnLoadRoute");
+
 
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -21,7 +24,7 @@ app.use(
   cors({
     origin: "http://localhost:5173", // frontend URL
     credentials: true,
-    methods: ["GET", "POST", "PATCH"],
+    methods: ["GET", "POST", "PATCH","DELETE"],
   })
 );
 
@@ -31,7 +34,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // ✅ Routes
 app.use("/auth", authRoutes);
-app.use("/rides", rideRoutes); // Ride + Live Tracking APIs
+app.use("/rides", rideRoutes);
+app.use("/geo", geoRoutes);
+
+app.use("/return", returnLoadRoute);
+// Ride + Live Tracking APIs
 
 // ✅ Mailer Config (optional, can move to utils/mailer.js)
 const transporter = nodemailer.createTransport({

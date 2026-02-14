@@ -1,232 +1,200 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState,useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import io from "socket.io-client";
 
-const socket = io("http://localhost:3000"); // Global socket
-const driverLocationMap = {}; // Keep track of rides currently sending location
+import ReturnModeToggle from "../DashBoard/ReturnModeToggle";
+import AvailableLoads from "../DashBoard/AvailableLoads";
+import ReturnLoads from "../DashBoard/ReturnLoads";
+import AcceptedLoads from "../DashBoard/AcceptedLoads";
+import { getReadableAddress } from "../../../utils/getReadableAddress";
+
 
 export default function DriverDashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+
+  const [isReturnMode, setIsReturnMode] = useState(false);
   const [availableLoads, setAvailableLoads] = useState([]);
+  const [returnLoads, setReturnLoads] = useState([]);
   const [acceptedLoads, setAcceptedLoads] = useState([]);
+  const [user, setUser] = useState(null);
 
-  // 🔹 Convert coordinates → full address
-  const getAddressFromCoords = async (lat, lng) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`
-      );
-      const data = await res.json();
-      return data.display_name || "Unknown Address";
-    } catch (err) {
-      console.error("Geocoding error:", err);
-      return "Unknown Address";
-    }
-  };
 
-  // 🔹 Process rides to add source & destination addresses
-  const processRides = async (rides) => {
+
+  //human readable addresses from lat lang for available loads
+  const enrichRidesWithAddress = async (rides) => {
     return Promise.all(
       rides.map(async (ride) => {
-        const [srcLng, srcLat] = ride.source?.coordinates || [];
-        const [destLng, destLat] = ride.destination?.coordinates || [];
+        if (!ride.source?.coordinates || !ride.destination?.coordinates) {
+          return ride;
+        }
 
-        const sourceAddress =
-          srcLat && srcLng ? await getAddressFromCoords(srcLat, srcLng) : "N/A";
-        const destinationAddress =
-          destLat && destLng
-            ? await getAddressFromCoords(destLat, destLng)
-            : "N/A";
+        const [srcLng, srcLat] = ride.source.coordinates;
+        const [destLng, destLat] = ride.destination.coordinates;
 
-        return { ...ride, sourceAddress, destinationAddress };
+        const sourceAddress = await getReadableAddress(srcLat, srcLng);
+        const destinationAddress = await getReadableAddress(destLat, destLng);
+
+        return {
+          ...ride,
+          sourceAddress,
+          destinationAddress
+        };
       })
     );
   };
 
+
+
+
+  // 🔹 Get logged-in user
   useEffect(() => {
-    fetch("http://localhost:3000/auth/me", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => setUser(data.user))
-      .catch((err) => console.error(err));
+    fetch("http://localhost:3000/auth/me", {
+      credentials: "include"
+    })
+      .then(res => res.json())
+      .then(data => setUser(data.user))
+      .catch(console.error);
   }, []);
 
-  const fetchAcceptedLoads = () => {
-    if (!user?._id) return;
-    fetch(`http://localhost:3000/rides/accepted/${user._id}`)
-      .then((res) => res.json())
-      .then(async (data) => {
-        const processed = await processRides(data);
-        setAcceptedLoads(processed);
+  // 🔹 Pending rides (normal mode)
+  const fetchPending = async () => {
+    const res = await fetch("http://localhost:3000/rides/pending", {
+      credentials: "include"
+    });
+    const data = await res.json();
 
-        // Start sending location for all rides
-        processed.forEach((ride) => startDriverLocation(ride._id));
-      })
-      .catch((err) => console.error(err));
+
+    const enriched = await enrichRidesWithAddress(data);
+
+    setAvailableLoads(enriched);
   };
 
-  useEffect(() => {
-    fetch("http://localhost:3000/rides/pending")
-      .then((res) => res.json())
-      .then(async (data) => {
-        const processed = await processRides(data);
-        setAvailableLoads(processed);
-      })
-      .catch((err) => console.error(err));
-  }, []);
+
+
+  // 🔹 Return rides (return mode)
+const fetchReturnRides = async () => {
+  // 1️⃣ First get ALL potential return rides from your main rides API
+  const allRidesRes = await fetch(
+    "http://localhost:3000/rides/pending",
+    { credentials: "include" }
+  );
+
+  const allRides = await allRidesRes.json();
+
+  // 2️⃣ Now send them to backend to filter inside corridor
+  const filterRes = await fetch(
+    "http://localhost:3000/return/rides/return-rides",
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rides: allRides })
+    }
+  );
+
+  const { validRides } = await filterRes.json();
+
+  // 3️⃣ Enrich and set state
+  const enriched = await enrichRidesWithAddress(validRides);
+  setReturnLoads(enriched);
+};
+
+
+
+
+  // 🔹 Accepted rides (always)
+  const fetchAccepted = async (driverId) => {
+    const res = await fetch(
+      `http://localhost:3000/rides/accepted/${driverId}`,
+      { credentials: "include" }
+    );
+    const data = await res.json();
+    const enriched = await enrichRidesWithAddress(data);
+    setAcceptedLoads(enriched);
+  };
+
+
+  // useEffect(() => {
+  //   fetchPending();
+  // }, []);
+
+useEffect(() => {
+
+  if (isReturnMode) {
+    fetchReturnRides();
+  } else {
+    fetchPending();   // 🔥 reload normal rides when exit
+  }
+
+}, [isReturnMode]);
+
 
   useEffect(() => {
-    if (user?._id) fetchAcceptedLoads();
+    if (user?._id) fetchAccepted(user._id);
   }, [user?._id]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    navigate("/login");
-  };
+  // 🔹 ACCEPT RIDE
+  const handleAccept = async (rideId) => {
+    try {
+      if (!user?._id) return alert("User not found");
 
-  // Start sending driver location for a ride (if not already)
-  const startDriverLocation = (rideId) => {
-    if (!rideId || driverLocationMap[rideId]) return;
+      const res = await fetch(
+        `http://localhost:3000/rides/${rideId}/accept`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ driverId: user._id }),
 
-    if ("geolocation" in navigator) {
-      const watchId = navigator.geolocation.watchPosition(
-        ({ coords }) => {
-          const { latitude, longitude } = coords;
-          console.log("📡 Sending driver location:", rideId, {
-            latitude,
-            longitude,
-          });
-
-          socket.emit("driverLocation", {
-            rideId,
-            coordinates: [longitude, latitude], // [lng, lat]
-          });
-        },
-        (err) => console.error("Geolocation error:", err),
-        { enableHighAccuracy: true, maximumAge: 0, distanceFilter: 1 }
+        }
       );
 
-      driverLocationMap[rideId] = watchId;
-    } else {
-      console.error("Geolocation not supported in this browser");
-    }
-  };
-
-  const handleAccept = async (loadId) => {
-    if (!user?._id) return alert("User not found");
-    try {
-      const res = await fetch(`http://localhost:3000/rides/${loadId}/accept`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ driverId: user._id }),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        alert("✅ Load accepted!");
-        fetchAcceptedLoads();
-        startDriverLocation(loadId);
-      } else {
-        alert("❌ Failed: " + (data.message || data.error));
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.message || "Failed to accept ride");
+        return;
       }
+
+      // refresh lists
+      fetchPending();
+      if (isReturnMode) fetchReturnRides();
+      if (user?._id) fetchAccepted(user._id);
+
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleViewMap = (rideId) => {
-    startDriverLocation(rideId);
-    navigate(`/track/${rideId}`);
-  };
-
   return (
     <div className="min-h-screen bg-gray-100 p-6">
-      <h1 className="text-3xl font-bold text-blue-600 mb-6">
+      <h1 className="text-3xl font-bold text-blue-600 mb-4">
         Driver Dashboard
       </h1>
 
-      {/* Available Loads */}
-      <div className="bg-white p-6 rounded-2xl shadow mb-6">
-        <h2 className="text-xl font-bold mb-4">Available Loads</h2>
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="bg-gray-200">
-              <th>Source</th>
-              <th>Destination</th>
-              <th>Truck</th>
-              <th>Date</th>
-              <th>Weight</th>
-              <th>Details</th>
-              <th>Fare</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {availableLoads.map((load) => (
-              <tr key={load._id}>
-                <td>{load.sourceAddress}</td>
-                <td>{load.destinationAddress}</td>
-                <td>{load.truckType}</td>
-                <td>{new Date(load.date).toLocaleDateString()}</td>
-                <td>{load.weight}</td>
-                <td>{load.loadDetails}</td>
-                <td>₹{load.fare}</td>
-                <td>
-                  <button
-                    className="bg-blue-600 text-white px-3 py-1 rounded"
-                    onClick={() => handleAccept(load._id)}
-                  >
-                    Accept
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <ReturnModeToggle
+        isReturnMode={isReturnMode}
+        setIsReturnMode={setIsReturnMode}
+      />
+
+      {/* 🔹 Pending rides (normal or return) */}
+      <div className="bg-white p-6 rounded-2xl shadow mt-6">
+        {isReturnMode ? (
+          <ReturnLoads
+            loads={returnLoads}
+            onAccept={handleAccept}
+          />
+        ) : (
+          <AvailableLoads
+            loads={availableLoads}
+            onAccept={handleAccept}
+          />
+        )}
       </div>
 
-      {/* Accepted Loads */}
-      <div className="bg-white p-6 rounded-2xl shadow">
-        <h2 className="text-xl font-bold mb-4">My Accepted Loads</h2>
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="bg-gray-200">
-              <th>Customer</th>
-              <th>Source</th>
-              <th>Destination</th>
-              <th>Truck</th>
-              <th>Date</th>
-              <th>Weight</th>
-              <th>Details</th>
-              <th>Fare</th>
-              <th>View Map</th>
-            </tr>
-          </thead>
-          <tbody>
-            {acceptedLoads.map((load) => (
-              <tr key={load._id}>
-                <td>{load.customer?.name || "Unknown"}</td>
-                <td>{load.sourceAddress}</td>
-                <td>{load.destinationAddress}</td>
-                <td>{load.truckType}</td>
-                <td>{new Date(load.date).toLocaleDateString()}</td>
-                <td>{load.weight}</td>
-                <td>{load.loadDetails}</td>
-                <td>₹{load.fare}</td>
-                <td>
-                  <button
-                    className="bg-green-600 text-white px-3 py-1 rounded"
-                    onClick={() => handleViewMap(load._id)}
-                  >
-                    View Map
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* 🔹 Accepted rides (always visible) */}
+      <AcceptedLoads
+        loads={acceptedLoads}
+        onViewMap={(id) => navigate(`/track/${id}`)}
+      />
     </div>
   );
 }
