@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getCurrentLocation } from '../../utils/getCurrentLocation';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -24,10 +25,15 @@ export default function Signup() {
 
   const handleSubmit = async (e) => {
   e.preventDefault();
+  const location = await getCurrentLocation();
 
   const dataToSend={
     ...formData,
     role: role,
+    location: {
+      type: "Point",
+      coordinates: [location.lng, location.lat]
+    }
   }
   
   const res = await fetch("http://localhost:3000/auth/register", {

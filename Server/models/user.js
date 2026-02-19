@@ -26,10 +26,17 @@ const userSchema = mongoose.Schema({
         type: String,
         required: true
     },
-    location: {
-      type: { type: String, enum: ["Point"], default: "Point" },
-      coordinates: { type: [Number], default: [0, 0] }, // [lng, lat]
-    },
+   location: {
+  type: {
+    type: String,
+    enum: ["Point"],
+    default: "Point"
+  },
+  coordinates: {
+    type: [Number], // [lng, lat]
+    default: [0, 0]}
+}
+,
     truckType:{
         enum:["","Container","Open","Trailer"],
         type: String,
@@ -45,9 +52,16 @@ const userSchema = mongoose.Schema({
         unique: true,
         default: null
     },
+  fcmTokens: {
+  type: [String],
+  default: []
+}
+
 },
     {
         timestamps: true
-    })
+    });
+    userSchema.index({ location: "2dsphere" });
+
 const User = mongoose.model('User', userSchema);
 module.exports = User;

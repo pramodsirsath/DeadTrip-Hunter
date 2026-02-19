@@ -1,13 +1,13 @@
-import { useEffect, useState,useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-
+import { Link } from 'react-router-dom';
 import ReturnModeToggle from "../DashBoard/ReturnModeToggle";
 import AvailableLoads from "../DashBoard/AvailableLoads";
 import ReturnLoads from "../DashBoard/ReturnLoads";
 import AcceptedLoads from "../DashBoard/AcceptedLoads";
 import { getReadableAddress } from "../../../utils/getReadableAddress";
-
-
+import { getCurrentLocation } from "../../../utils/getCurrentLocation";
+import { generateFCMToken } from "../../../firebase/getFCMToken";
 export default function DriverDashboard() {
   const navigate = useNavigate();
 
@@ -16,6 +16,13 @@ export default function DriverDashboard() {
   const [returnLoads, setReturnLoads] = useState([]);
   const [acceptedLoads, setAcceptedLoads] = useState([]);
   const [user, setUser] = useState(null);
+
+
+
+
+useEffect(() => {
+  generateFCMToken();
+}, []);
 
 
 
@@ -56,47 +63,57 @@ export default function DriverDashboard() {
   }, []);
 
   // 🔹 Pending rides (normal mode)
-  const fetchPending = async () => {
-    const res = await fetch("http://localhost:3000/rides/pending", {
-      credentials: "include"
-    });
-    const data = await res.json();
+const fetchPending = async () => {
+  const position = await getCurrentLocation();
 
+  const res = await fetch("http://localhost:3000/rides/filter-pending", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      lat: position.lat,
+      lng: position.lng
+    })
+  });
 
-    const enriched = await enrichRidesWithAddress(data);
+  const data = await res.json();
+  const enriched = await enrichRidesWithAddress(data);
 
-    setAvailableLoads(enriched);
-  };
+  setAvailableLoads(enriched);
+};
+
 
 
 
   // 🔹 Return rides (return mode)
-const fetchReturnRides = async () => {
-  // 1️⃣ First get ALL potential return rides from your main rides API
-  const allRidesRes = await fetch(
-    "http://localhost:3000/rides/pending",
-    { credentials: "include" }
-  );
+  const fetchReturnRides = async () => {
+    // 1️⃣ First get ALL potential return rides from your main rides API
+    const allRidesRes = await fetch(
+      "http://localhost:3000/rides/pending",
+      { credentials: "include" }
+    );
 
-  const allRides = await allRidesRes.json();
+    const allRides = await allRidesRes.json();
 
-  // 2️⃣ Now send them to backend to filter inside corridor
-  const filterRes = await fetch(
-    "http://localhost:3000/return/rides/return-rides",
-    {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rides: allRides })
-    }
-  );
+    // 2️⃣ Now send them to backend to filter inside corridor
+    const filterRes = await fetch(
+      "http://localhost:3000/return/rides/return-rides",
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rides: allRides })
+      }
+    );
 
-  const { validRides } = await filterRes.json();
+    const { validRides } = await filterRes.json();
 
-  // 3️⃣ Enrich and set state
-  const enriched = await enrichRidesWithAddress(validRides);
-  setReturnLoads(enriched);
-};
+    // 3️⃣ Enrich and set state
+    const enriched = await enrichRidesWithAddress(validRides);
+    setReturnLoads(enriched);
+  };
 
 
 
@@ -117,15 +134,15 @@ const fetchReturnRides = async () => {
   //   fetchPending();
   // }, []);
 
-useEffect(() => {
+  useEffect(() => {
 
-  if (isReturnMode) {
-    fetchReturnRides();
-  } else {
-    fetchPending();   // 🔥 reload normal rides when exit
-  }
+    if (isReturnMode) {
+      fetchReturnRides();
+    } else {
+      fetchPending();   // 🔥 reload normal rides when exit
+    }
 
-}, [isReturnMode]);
+  }, [isReturnMode]);
 
 
   useEffect(() => {
@@ -169,6 +186,12 @@ useEffect(() => {
       <h1 className="text-3xl font-bold text-blue-600 mb-4">
         Driver Dashboard
       </h1>
+      <Link
+        to="/driver/profile"
+        className="bg-white border p-4 rounded-lg text-center hover:shadow"
+      >
+        Manage Profile
+      </Link>
 
       <ReturnModeToggle
         isReturnMode={isReturnMode}

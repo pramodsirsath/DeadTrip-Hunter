@@ -3,6 +3,9 @@ const User = require('../models/user');
 const { sendCustomerEmail } = require('../services/email.service');
 
 // ✅ Create Ride (customer posts a load)
+const sendNotification = require("../utils/sendNotification");
+
+
 
 module.exports.createRide = async (req, res) => {
   try {
@@ -30,6 +33,22 @@ module.exports.createRide = async (req, res) => {
       date,
       status: "pending",
     });
+    const drivers = await User.find({
+      role: "driver",
+      location: {
+        $near: {
+          $geometry: newRide.source,
+          $maxDistance: 50000
+        }
+      }
+    });
+
+    const tokens = drivers.flatMap(d => d.fcmTokens);
+    console.log("DRIVERS FOUND:", drivers.length);
+console.log("TOKENS:", tokens);
+
+
+    await sendNotification(tokens, newRide);
 
     res.status(201).json({
       message: "Ride created successfully",
@@ -89,6 +108,31 @@ module.exports.getPendingRides = async (req, res) => {
   } catch (error) {
     console.error("Error fetching pending rides:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+module.exports.getFilterPendingRides = async (req, res) => {
+  try {
+
+    const { lat, lng } = req.body;
+
+    const rides = await Ride.find({
+      status: "pending",
+      source: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: [lng, lat] // IMPORTANT lng first
+          },
+          $maxDistance: 50000 // 50km in meters
+        }
+      }
+    });
+
+    res.json(rides);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "Failed to fetch nearby rides" });
   }
 };
 
@@ -157,10 +201,10 @@ module.exports.acceptRide = async (req, res) => {
     // ✅ Notify customer via email
 
     const [srcLng, srcLat] = ride.source?.coordinates || [];
-          const [destLng, destLat] = ride.destination?.coordinates || [];
+    const [destLng, destLat] = ride.destination?.coordinates || [];
 
-          const source = srcLat && srcLng ? await getAddress(srcLat, srcLng) : "N/A";
-          const destination = destLat && destLng ? await getAddress(destLat, destLng) : "N/A";
+    const source = srcLat && srcLng ? await getAddress(srcLat, srcLng) : "N/A";
+    const destination = destLat && destLng ? await getAddress(destLat, destLng) : "N/A";
 
     await sendCustomerEmail(
       customer.email,
@@ -200,7 +244,7 @@ module.exports.getRideById = async (req, res) => {
   }
 };
 
-module.exports.getAddressFromCoordinates =  async (req, res) => {
+module.exports.getAddressFromCoordinates = async (req, res) => {
   const { lat, lon } = req.query;
   try {
     const response = await fetch(

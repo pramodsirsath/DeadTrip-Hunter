@@ -28,7 +28,7 @@ export default function ReturnLoads({ loads, onAccept }) {
         Rides On Your Way Home
       </h2>
       <LoadTable loads={loads} onAccept={onAccept} />
-      <CheckMap data={data}/>
+      {/* <CheckMap data={data}/> */}
     </>
   );
 }

@@ -8,13 +8,24 @@ import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import DriverDashboard from './pages/Driver/DashBoard/dashboard';
 import PostLoad from './pages/Customer/postLoad/postLoad';
 import CustomerProfile from './pages/Customer/profile/profile';
+import DriverProfile from './pages/Driver/profile/profile';
+import { listenNotifications } from './firebase/notificationListener';
 
 import TrackRide from './pages/TrackRide';
 import 'leaflet/dist/leaflet.css';
 import './App.css'
+import { useEffect } from 'react';
+import axios from "axios";
+
+axios.defaults.withCredentials = true;
+
+
 
 function App() {
-  
+  useEffect(() => {
+  listenNotifications();
+}, []);
+
 
   return (
     <>
@@ -42,6 +53,7 @@ function App() {
           {/* Driver Routes */}
         
           <Route element={<ProtectedRoute allowedRole="driver" />}>
+            <Route path="/driver/profile" element={<DriverProfile />} />
             <Route path="/driver/dashboard" element={<DriverDashboard />} />
           </Route>
           

@@ -14,6 +14,7 @@ router.patch("/:rideId/cancel", rideController.cancelRide);
 
 // ✅ Driver sees all pending rides
 router.get("/pending", rideController.getPendingRides);
+router.post("/filter-pending", rideController.getFilterPendingRides);
 router.get("/accepted/:driverId", rideController.getAcceptedRides);
 
 // ✅ Driver accepts a ride

@@ -2,7 +2,7 @@ const User = require("../models/user");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 module.exports.register=async function(req,res){
-   const {role,name,email,phone,password,truckNumber,truckType,licenseNumber}=req.body;
+   const {role,name,email,phone,location,password,truckNumber,truckType,licenseNumber}=req.body;
 
    try{
     if(!name || !email || !phone || !password){
@@ -27,6 +27,7 @@ module.exports.register=async function(req,res){
         name,
         email,
         phone,
+        location,
         password:hashedPassword,
         truckType, // Default value for truckType
         truckNumber, // Default value for truckNumber
