@@ -1,14 +1,13 @@
 importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js");
-import dotenv from "dotenv";
-dotenv.config();
+
 
 firebase.initializeApp({
-  apiKey: "AIzaSyAPiW40iL_LShrRClfkpgZUk5rAEes5x0s",
-  authDomain: "deadtrip-hunter.firebaseapp.com",
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  messagingSenderId: "267645196070",
-  appId: "1:267645196070:web:6a25d5b6a6bc13259c13e7"
+  apiKey: import.meta.env.VITE_apiKey,
+  authDomain: import.meta.env.VITE_authDomain,
+  projectId: import.meta.env.VITE_projectId,
+  messagingSenderId: import.meta.env.VITE_messagingSenderId,
+  appId: import.meta.env.VITE_appId,
 });
 
 const messaging = firebase.messaging();
