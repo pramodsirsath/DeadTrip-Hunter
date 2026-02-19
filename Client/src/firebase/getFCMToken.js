@@ -7,7 +7,7 @@ export const generateFCMToken = async () => {
   if (permission !== "granted") return;
 
   const token = await getToken(messaging, {
-    vapidKey: "BIywdvU3_DPW5MBhC7JuhhfGvlciwYzX7qAfElbD7oKZeALdv4-Kwt_5RWo_CQdyy9tlbHvB46leUn1lHZyzlL0"
+    vapidKey: import.meta.env.VITE_vapidKey
   });
 
   // send token to backend
