@@ -9,9 +9,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-blue-600">DeadTrip Hunter</h1>
           <nav className="space-x-6">
-            <a href="/search" className="hover:text-blue-500">Search Loads</a>
-            <a href="/post" className="hover:text-blue-500">Post Load</a>
-            <a href="/login" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Login</a>
+           <a href="/login" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Login</a>
             <a href="/signup" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Sign Up</a>
           </nav>
         </div>
