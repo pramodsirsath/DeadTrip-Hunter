@@ -8,6 +8,7 @@ import AcceptedLoads from "../DashBoard/AcceptedLoads";
 import { getReadableAddress } from "../../../utils/getReadableAddress";
 import { getCurrentLocation } from "../../../utils/getCurrentLocation";
 import { generateFCMToken } from "../../../firebase/getFCMToken";
+import DriverReservationBanner from "./DriverReservationBanner";
 export default function DriverDashboard() {
   const navigate = useNavigate();
 
@@ -186,6 +187,7 @@ const fetchPending = async () => {
       <h1 className="text-3xl font-bold text-blue-600 mb-4">
         Driver Dashboard
       </h1>
+      <DriverReservationBanner />
       <Link
         to="/driver/profile"
         className="bg-white border p-4 rounded-lg text-center hover:shadow"

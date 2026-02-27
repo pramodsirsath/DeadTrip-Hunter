@@ -1,5 +1,6 @@
 const Ride = require('../models/ride');
 const User = require('../models/user');
+const RideReservation = require("../models/RideReservation");
 const { sendCustomerEmail } = require('../services/email.service');
 
 // ✅ Create Ride (customer posts a load)
@@ -61,17 +62,29 @@ console.log("TOKENS:", tokens);
 };
 
 
-
-// ✅ Get all rides for a customer/driver
 module.exports.getUserRides = async (req, res) => {
   try {
-    const userId = req.params.userId;  // ✅ use params, not query
 
+    const userId = req.params.userId;
+
+    // 1️⃣ Get active reservations
+    const activeReservations = await RideReservation.find({
+      expiresAt: { $gt: new Date() }
+    }).select("rideId");
+
+    const reservedRideIds = activeReservations.map(r => r.rideId);
+
+    // 2️⃣ Get rides excluding reserved ones
     const rides = await Ride.find({
-      $or: [{ customer_id: userId }, { driverId: userId }],
+      $or: [
+        { customer_id: userId },
+        { driverId: userId }
+      ],
+      _id: { $nin: reservedRideIds }
     }).populate("customer_id driverId", "name email phone");
 
     res.json(rides);
+
   } catch (error) {
     console.error("Error fetching user rides:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -100,36 +113,63 @@ module.exports.cancelRide = async (req, res) => {
   }
 };
 
-// ✅ List pending rides (for drivers to accept)
+
+
+
 module.exports.getPendingRides = async (req, res) => {
   try {
-    const rides = await Ride.find({ status: "pending" }).populate("customer_id", "name phone");
+
+    // 1️⃣ Get active reservations
+    const activeReservations = await RideReservation.find({
+      expiresAt: { $gt: new Date() }
+    }).select("rideId");
+
+    const reservedRideIds = activeReservations.map(r => r.rideId);
+
+    // 2️⃣ Fetch only pending rides NOT reserved
+    const rides = await Ride.find({
+      status: "pending",
+      _id: { $nin: reservedRideIds }
+    }).populate("customer_id", "name phone");
+
     res.status(200).json(rides);
+
   } catch (error) {
     console.error("Error fetching pending rides:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+
 module.exports.getFilterPendingRides = async (req, res) => {
   try {
-
     const { lat, lng } = req.body;
 
+    // 1️⃣ Get all active reservations
+    const activeReservations = await RideReservation.find({
+      expiresAt: { $gt: new Date() }
+    }).select("rideId");
+
+    // Extract ride IDs that are reserved
+    const reservedRideIds = activeReservations.map(r => r.rideId);
+
+    // 2️⃣ Find nearby rides that are NOT reserved
     const rides = await Ride.find({
       status: "pending",
+      _id: { $nin: reservedRideIds }, // 🔥 exclude reserved rides
       source: {
         $near: {
           $geometry: {
             type: "Point",
-            coordinates: [lng, lat] // IMPORTANT lng first
+            coordinates: [lng, lat] // lng first
           },
-          $maxDistance: 50000 // 50km in meters
+          $maxDistance: 50000
         }
       }
     });
 
     res.json(rides);
+
   } catch (err) {
     console.log(err);
     res.status(500).json({ error: "Failed to fetch nearby rides" });
@@ -175,6 +215,7 @@ const getAddress = async (lat, lng) => {
     return "Error";
   }
 };
+
 module.exports.acceptRide = async (req, res) => {
   try {
     const rideId = req.params.id;
@@ -182,21 +223,35 @@ module.exports.acceptRide = async (req, res) => {
 
     const ride = await Ride.findById(rideId);
     if (!ride) return res.status(404).json({ error: "Ride not found" });
+
     if (ride.status !== "pending") {
       return res.status(400).json({ error: "Ride already accepted or closed" });
     }
 
     const driver = await User.findById(driverId);
-    const customer = await User.findById(ride.customer_id);
-
     if (!driver) return res.status(404).json({ error: "Driver not found" });
-    if (!customer) return res.status(404).json({ error: "Customer not found" });
 
-    // ✅ Update ride
-    ride.driverId = driverId;
-    ride.status = "accepted";
-    ride.acceptedAt = new Date();
-    await ride.save();
+    // 🔒 Check if already reserved
+    const existingReservation = await RideReservation.findOne({
+      rideId,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (existingReservation) {
+      return res.status(400).json({ error: "Ride already reserved" });
+    }
+
+    // ✅ Create Reservation (10 min lock)
+    const reservation = await RideReservation.create({
+      rideId,
+      driverId,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+    });
+
+    return res.json({
+      message: "Ride reserved. Waiting for customer payment.",
+      reservationId: reservation._id
+    });
 
     // ✅ Notify customer via email
 

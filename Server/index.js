@@ -9,6 +9,28 @@ const nodemailer = require("nodemailer");
 const geoRoutes = require("./routes/geoRoutes");
 const returnLoadRoute = require("./routes/returnLoadRoute");
 
+const reservationRoutes = require("./routes/reservationRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+const { stripeWebhook } = require("./controllers/paymentController");
+
+const app = express();
+app.use(
+  cors({
+    origin: "http://localhost:5173", // frontend URL
+    credentials: true,
+    methods: ["GET", "POST", "PATCH","DELETE"],
+  })
+);
+
+app.post(
+  "/api/payment/webhook",
+  express.raw({ type: "application/json" }),
+  stripeWebhook
+);
+
+app.use(express.json());
+app.use("/api/reservation", reservationRoutes);
+app.use("/api/payment", paymentRoutes);
 
 const { createServer } = require("http");
 const { Server } = require("socket.io");
@@ -17,16 +39,9 @@ const socketController = require("./controllers/socketController");
 dotenv.config();
 connectDB();
 
-const app = express();
 
 // ✅ Middlewares
-app.use(
-  cors({
-    origin: "http://localhost:5173", // frontend URL
-    credentials: true,
-    methods: ["GET", "POST", "PATCH","DELETE"],
-  })
-);
+
 
 app.use(cookieParser());
 app.use(express.json());
