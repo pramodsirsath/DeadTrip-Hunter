@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "../components/leafletConfig"; // fixed marker icons
 import io from "socket.io-client";
+import { ArrowLeft, Navigation, MapPin } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner/LoadingSpinner';
 
 const socket = io("http://localhost:3000");
 
@@ -80,25 +82,81 @@ export default function TrackRide() {
   }, [driverLocation, source, destination]);
 
   return (
-    <div className="w-full h-screen">
+    <div style={{
+      width: '100%',
+      height: 'calc(100vh - 64px)',
+      position: 'relative',
+    }}>
       {source && destination ? (
-        <MapContainer
-          center={driverLocation || source}
-          zoom={7}
-          scrollWheelZoom={true}
-          style={{ width: "100%", height: "100%" }}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution="&copy; OpenStreetMap contributors"
-          />
-          <Marker position={source} icon={SourceIcon} />
-          <Marker position={destination} icon={DestinationIcon} />
-          {driverLocation && <Marker position={driverLocation} icon={driverIcon} />}
-          {routeCoords.length > 0 && <Polyline positions={routeCoords} color="blue" weight={4} />}
-        </MapContainer>
+        <>
+          <MapContainer
+            center={driverLocation || source}
+            zoom={7}
+            scrollWheelZoom={true}
+            style={{ width: "100%", height: "100%" }}
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution="&copy; OpenStreetMap contributors"
+            />
+            <Marker position={source} icon={SourceIcon} />
+            <Marker position={destination} icon={DestinationIcon} />
+            {driverLocation && <Marker position={driverLocation} icon={driverIcon} />}
+            {routeCoords.length > 0 && <Polyline positions={routeCoords} color="#3b82f6" weight={4} opacity={0.8} />}
+          </MapContainer>
+
+          {/* Overlay Header */}
+          <div className="glass-strong animate-fadeInDown" style={{
+            position: 'absolute',
+            top: '16px',
+            left: '16px',
+            right: '16px',
+            zIndex: 1000,
+            borderRadius: 'var(--radius-lg)',
+            padding: '12px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+          }}>
+            <Link to={-1} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '36px', height: '36px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              textDecoration: 'none',
+              flexShrink: 0,
+            }}>
+              <ArrowLeft size={18} />
+            </Link>
+
+            <div style={{ flex: 1 }}>
+              <p style={{ fontWeight: '700', fontSize: '0.95rem' }}>
+                <Navigation size={14} style={{ display: 'inline', verticalAlign: '-2px', marginRight: '6px', color: 'var(--accent-blue)' }} />
+                Live Tracking
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                Ride #{rideId?.slice(-6)}
+              </p>
+            </div>
+
+            {driverLocation && (
+              <span className="badge badge-ongoing" style={{ fontSize: '0.7rem' }}>
+                <span className="dot"></span>
+                Driver Live
+              </span>
+            )}
+          </div>
+        </>
       ) : (
-        <div className="flex items-center justify-center w-full h-screen">Loading map...</div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+        }}>
+          <LoadingSpinner text="Loading map..." />
+        </div>
       )}
     </div>
   );

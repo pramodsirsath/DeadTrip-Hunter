@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+/* Page transition wrapper */
+.page-enter {
+  animation: fadeInUp 0.5s ease-out both;
+}
+
+/* App layout */
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  flex: 1;
+}

@@ -1,6 +1,7 @@
 import LoadTable from "./LoadTable";
-import CheckMap from "./checkMap";
+import CheckMap from "./CheckMap";
 import { useEffect, useState } from "react";
+import { Home } from 'lucide-react';
 
 export default function ReturnLoads({ loads, onAccept }) {
     const [data, setData] = useState(null);
@@ -24,7 +25,8 @@ export default function ReturnLoads({ loads, onAccept }) {
 
   return (
     <>
-      <h2 className="text-xl font-bold mb-4">
+      <h2 className="section-title" style={{ marginBottom: '16px' }}>
+        <Home size={20} />
         Rides On Your Way Home
       </h2>
       <LoadTable loads={loads} onAccept={onAccept} />

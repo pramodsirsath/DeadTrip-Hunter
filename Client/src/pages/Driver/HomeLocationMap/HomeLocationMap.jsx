@@ -2,6 +2,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import { useState } from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { MapPin, Home, X, CheckCircle } from 'lucide-react';
 
 // Fix marker icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -27,18 +28,53 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
   const [homeLocation, setHomeLocation] = useState(null);
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
-
-      <div className="bg-white w-[90%] h-[85%] rounded-xl p-4 relative shadow-2xl">
-
-        <h2 className="text-lg font-bold mb-3">Select Home Location</h2>
+    <div className="modal-overlay" onClick={() => !loading && onCancel()}>
+      <div className="modal-content animate-scaleIn" onClick={(e) => e.stopPropagation()} style={{
+        width: '95%',
+        maxWidth: '900px',
+        height: '85vh',
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '16px',
+        }}>
+          <h2 style={{
+            fontWeight: '700',
+            fontSize: '1.1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <Home size={20} style={{ color: 'var(--accent-blue)' }} />
+            Select Home Location
+          </h2>
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="btn btn-ghost"
+            style={{ padding: '8px' }}
+          >
+            <X size={20} />
+          </button>
+        </div>
 
         {/* MAP CONTAINER */}
-        <div className="relative h-[75%] w-full rounded-lg overflow-hidden">
+        <div style={{
+          flex: 1,
+          borderRadius: 'var(--radius-md)',
+          overflow: 'hidden',
+          position: 'relative',
+        }}>
           <MapContainer
             center={[20.5937, 78.9629]}
             zoom={5}
-            className="h-full w-full"
+            style={{ height: '100%', width: '100%' }}
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
@@ -49,18 +85,37 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
             )}
           </MapContainer>
 
-          {/* 🔥 Loading Overlay */}
+          {/* Loading Overlay */}
           {loading && (
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="bg-white px-8 py-5 rounded-2xl shadow-2xl text-center animate-pulse">
-                <div className="flex items-center gap-3 justify-center">
-                  <div className="w-5 h-5 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-lg font-semibold text-gray-800">
-                    Calculating return corridor...
-                  </span>
-                </div>
-
-                <p className="text-sm text-gray-500 mt-2">
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.7)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 50,
+            }}>
+              <div className="glass-card animate-scaleIn" style={{
+                padding: '24px 32px',
+                textAlign: 'center',
+              }}>
+                <div style={{
+                  width: '40px', height: '40px',
+                  borderRadius: '50%',
+                  border: '3px solid var(--bg-tertiary)',
+                  borderTopColor: 'var(--accent-blue)',
+                  animation: 'spin 0.8s linear infinite',
+                  margin: '0 auto 14px',
+                }} />
+                <p style={{ fontWeight: '600', marginBottom: '6px' }}>
+                  Calculating return corridor...
+                </p>
+                <p style={{
+                  fontSize: '0.8rem',
+                  color: 'var(--text-tertiary)',
+                }}>
                   Finding rides along your way home
                 </p>
               </div>
@@ -69,33 +124,54 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
         </div>
 
         {/* BUTTONS */}
-        <div className="flex justify-end gap-3 mt-4">
-          <button
-            onClick={() => onConfirm(homeLocation)}
-            disabled={!homeLocation || loading}
-            className={`px-5 py-2 rounded text-white transition ${
-              !homeLocation || loading
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-green-600 hover:bg-green-700"
-            }`}
-          >
-            {loading ? "Starting..." : "Confirm Home Location"}
-          </button>
-
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '10px',
+          marginTop: '16px',
+        }}>
           <button
             onClick={onCancel}
             disabled={loading}
-            className={`px-5 py-2 rounded transition ${
-              loading
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-gray-200 hover:bg-gray-300"
-            }`}
+            className="btn btn-ghost"
           >
             Cancel
           </button>
+          <button
+            onClick={() => onConfirm(homeLocation)}
+            disabled={!homeLocation || loading}
+            className="btn btn-primary"
+            style={{
+              opacity: (!homeLocation || loading) ? 0.5 : 1,
+              cursor: (!homeLocation || loading) ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {loading ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  width: '16px', height: '16px', borderRadius: '50%',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  borderTopColor: 'white',
+                  animation: 'spin 0.6s linear infinite',
+                  display: 'inline-block',
+                }} />
+                Starting...
+              </span>
+            ) : (
+              <>
+                <CheckCircle size={16} />
+                Confirm Home Location
+              </>
+            )}
+          </button>
         </div>
-
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

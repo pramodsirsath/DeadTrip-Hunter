@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import socket from "../../../socket";
+import { Map, MapPin, ArrowRight, Eye } from 'lucide-react';
 
 const driverLocationMap = {};
 
@@ -27,36 +28,80 @@ export default function AcceptedLoads({ loads, onViewMap }) {
   }, [loads]);
 
   return (
-    <div className="bg-white p-6 mt-6 rounded-2xl shadow">
-      <h2 className="text-xl font-bold mb-4">My Accepted Rides</h2>
+    <div className="glass-card" style={{ padding: '24px' }}>
+      <h2 className="section-title" style={{ marginBottom: '16px' }}>
+        <Map size={20} />
+        My Accepted Rides
+      </h2>
 
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="bg-gray-200">
-            <th>Source</th>
-            <th>Destination</th>
-            <th>Truck</th>
-            <th>Map</th>
-          </tr>
-        </thead>
-        <tbody>
+      {loads.length === 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '32px 24px',
+          color: 'var(--text-secondary)',
+        }}>
+          <Map size={36} style={{ opacity: 0.3, marginBottom: '10px' }} />
+          <p style={{ fontWeight: '600', fontSize: '0.9rem' }}>No accepted rides yet</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>Accept a ride to get started</p>
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: '12px',
+        }}>
           {loads.map(ride => (
-            <tr key={ride._id}>
-              <td>{ride.sourceAddress}</td>
-              <td>{ride.destinationAddress}</td>
-              <td>{ride.truckType}</td>
-              <td>
+            <div key={ride._id} style={{
+              padding: '16px 20px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-primary)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              transition: 'all var(--transition-base)',
+            }}>
+              {/* Route */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                  fontSize: '0.85rem', color: 'var(--text-primary)',
+                  maxWidth: '45%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  <MapPin size={14} style={{ color: 'var(--success)', flexShrink: 0 }} />
+                  {ride.sourceAddress}
+                </span>
+                <ArrowRight size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                <span style={{
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                  fontSize: '0.85rem', color: 'var(--text-primary)',
+                  maxWidth: '45%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  <MapPin size={14} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+                  {ride.destinationAddress}
+                </span>
+              </div>
+
+              {/* Bottom row */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <span className="badge badge-active">{ride.truckType}</span>
                 <button
                   onClick={() => onViewMap(ride._id)}
-                  className="bg-green-600 text-white px-3 py-1 rounded"
+                  className="btn btn-success"
+                  style={{ padding: '6px 14px', fontSize: '0.8rem' }}
                 >
+                  <Eye size={14} />
                   View Map
                 </button>
-              </td>
-            </tr>
+              </div>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+      )}
     </div>
   );
 }

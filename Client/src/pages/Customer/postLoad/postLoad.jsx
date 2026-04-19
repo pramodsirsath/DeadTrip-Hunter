@@ -3,6 +3,10 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { jwtDecode } from "jwt-decode";
+import { MapPin, Calendar, Truck, Weight, IndianRupee, FileText, ArrowRight, X, CheckCircle } from "lucide-react";
+import PageTransition from "../../../components/PageTransition/PageTransition";
+import GlassCard from "../../../components/GlassCard/GlassCard";
+import { useToast } from "../../../components/Toast/Toast";
 
 // Custom marker
 const markerIcon = new L.Icon({
@@ -22,6 +26,7 @@ function LocationPicker({ setCoords }) {
 }
 
 export default function PostLoad() {
+  const toast = useToast();
   const [form, setForm] = useState({
     source: { lat: "", lng: "" },
     destination: { lat: "", lng: "" },
@@ -29,10 +34,11 @@ export default function PostLoad() {
     truckType: "",
     loadDetails: "",
     weight: "",
-    fare: "", // ✅ Added fare
+    fare: "",
   });
 
-  const [selecting, setSelecting] = useState(null); // "source" | "destination" | null
+  const [selecting, setSelecting] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -40,11 +46,12 @@ export default function PostLoad() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        alert("You must be logged in to post a load!");
+        toast("You must be logged in to post a load!", "error");
         return;
       }
 
@@ -64,12 +71,11 @@ export default function PostLoad() {
 
       const loadData = await res.json();
       if (!res.ok) {
-        alert("Failed to post load: " + loadData.message);
+        toast("Failed to post load: " + loadData.message, "error");
         return;
       }
 
-      alert("✅ Load posted successfully!");
-      console.log("Load posted successfully:", loadData);
+      toast("Load posted successfully!", "success");
 
       setForm({
         source: { lat: "", lng: "" },
@@ -78,156 +84,294 @@ export default function PostLoad() {
         truckType: "",
         loadDetails: "",
         weight: "",
-        fare: "", // reset fare
+        fare: "",
       });
     } catch (err) {
       console.error("Error posting load:", err);
-      alert("Something went wrong while posting the load.");
+      toast("Something went wrong while posting the load.", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-3xl mx-auto bg-white shadow p-8 rounded-lg">
-        <h2 className="text-2xl font-bold text-blue-600 mb-6 text-center">
-          Post a Load
-        </h2>
-
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4">
-          {/* Source Selection */}
-          <div>
-            <button
-              type="button"
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-              onClick={() => setSelecting("source")}
-            >
-              Select Source on Map
-            </button>
-            {form.source.lat && (
-              <p className="text-sm text-gray-600 mt-1">
-                📍 Source: {form.source.lat}, {form.source.lng}
-              </p>
-            )}
-          </div>
-
-          {/* Destination Selection */}
-          <div>
-            <button
-              type="button"
-              className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
-              onClick={() => setSelecting("destination")}
-            >
-              Select Destination on Map
-            </button>
-            {form.destination.lat && (
-              <p className="text-sm text-gray-600 mt-1">
-                📍 Destination: {form.destination.lat}, {form.destination.lng}
-              </p>
-            )}
-          </div>
-
-          <input
-            type="date"
-            name="date"
-            value={form.date}
-            onChange={handleChange}
-            className="border p-2 rounded"
-            required
-          />
-
-          <select
-            name="truckType"
-            value={form.truckType}
-            onChange={handleChange}
-            className="border p-2 rounded"
-            required
-          >
-            <option value="">Select Truck Type</option>
-            <option value="Container">Container</option>
-            <option value="Open">Open</option>
-            <option value="Trailer">Trailer</option>
-          </select>
-
-          <input
-            type="text"
-            name="weight"
-            placeholder="Weight (e.g., 10 tons)"
-            value={form.weight}
-            onChange={handleChange}
-            className="border p-2 rounded"
-            required
-          />
-
-          {/* ✅ Fare Field */}
-          <input
-            type="number"
-            name="fare"
-            placeholder="Fare (in ₹)"
-            value={form.fare}
-            onChange={handleChange}
-            className="border p-2 rounded"
-            required
-          />
-
-          <textarea
-            name="loadDetails"
-            placeholder="Load Details"
-            value={form.loadDetails}
-            onChange={handleChange}
-            className="border p-2 rounded h-24"
-            required
-          ></textarea>
-
-          <button
-            type="submit"
-            className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-          >
-            Post Load
-          </button>
-        </form>
-      </div>
-
-      {/* Map Modal */}
-      {selecting && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-4 rounded-lg w-[100%] h-[100%] relative">
-            <h3 className="text-lg font-semibold mb-2">
-              Select {selecting === "source" ? "Source" : "Destination"} Location
-            </h3>
-            <MapContainer
-              center={[20.5937, 78.9629]} // India center
-              zoom={5}
-              style={{ height: "100%", width: "100%" }}
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>'
-              />
-              <LocationPicker
-                setCoords={(coords) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    [selecting]: coords,
-                  }))
-                }
-              />
-              {form[selecting].lat && (
-                <Marker
-                  position={[form[selecting].lat, form[selecting].lng]}
-                  icon={markerIcon}
-                />
-              )}
-            </MapContainer>
-
-            <button
-              className="absolute top-2 right-2 bg-red-500 text-white px-3 py-1 rounded"
-              onClick={() => setSelecting(null)}
-            >
-              Close
-            </button>
-          </div>
+    <PageTransition>
+      <div style={{
+        minHeight: 'calc(100vh - 64px)',
+        padding: '32px 16px',
+        maxWidth: '720px',
+        margin: '0 auto',
+      }}>
+        {/* Header */}
+        <div className="animate-fadeInUp" style={{
+          textAlign: 'center',
+          marginBottom: '32px',
+        }}>
+          <h1 style={{
+            fontSize: '1.8rem',
+            fontWeight: '800',
+            letterSpacing: '-0.02em',
+            marginBottom: '8px',
+          }}>
+            Post a <span className="gradient-text">Load</span>
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+            Fill in the details and find drivers for your cargo
+          </p>
         </div>
-      )}
-    </div>
+
+        <GlassCard delay={0.1}>
+          <form onSubmit={handleSubmit} style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+          }}>
+            {/* Source & Destination Selection */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px',
+            }}>
+              <button
+                type="button"
+                className={form.source.lat ? 'btn btn-success' : 'btn btn-ghost'}
+                onClick={() => setSelecting("source")}
+                style={{ padding: '14px', justifyContent: 'flex-start', width: '100%' }}
+              >
+                <MapPin size={18} />
+                {form.source.lat ? 'Source Set ✓' : 'Select Source'}
+              </button>
+
+              <button
+                type="button"
+                className={form.destination.lat ? 'btn btn-success' : 'btn btn-ghost'}
+                onClick={() => setSelecting("destination")}
+                style={{ padding: '14px', justifyContent: 'flex-start', width: '100%' }}
+              >
+                <MapPin size={18} />
+                {form.destination.lat ? 'Dest. Set ✓' : 'Select Destination'}
+              </button>
+            </div>
+
+            {/* Coordinates display */}
+            {(form.source.lat || form.destination.lat) && (
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                flexWrap: 'wrap',
+                fontSize: '0.8rem',
+                color: 'var(--text-tertiary)',
+              }}>
+                {form.source.lat && (
+                  <span>📍 Source: {Number(form.source.lat).toFixed(4)}, {Number(form.source.lng).toFixed(4)}</span>
+                )}
+                {form.destination.lat && (
+                  <span>📍 Dest: {Number(form.destination.lat).toFixed(4)}, {Number(form.destination.lng).toFixed(4)}</span>
+                )}
+              </div>
+            )}
+
+            {/* Date */}
+            <div className="input-group">
+              <Calendar size={18} className="input-icon" />
+              <input
+                type="date"
+                name="date"
+                value={form.date}
+                onChange={handleChange}
+                className="input"
+                required
+                style={{ paddingLeft: '42px' }}
+              />
+            </div>
+
+            {/* Truck Type */}
+            <div className="input-group">
+              <Truck size={18} className="input-icon" />
+              <select
+                name="truckType"
+                value={form.truckType}
+                onChange={handleChange}
+                className="input"
+                required
+                style={{ paddingLeft: '42px' }}
+              >
+                <option value="">Select Truck Type</option>
+                <option value="Container">Container</option>
+                <option value="Open">Open</option>
+                <option value="Trailer">Trailer</option>
+              </select>
+            </div>
+
+            {/* Weight */}
+            <div className="input-group">
+              <Weight size={18} className="input-icon" />
+              <input
+                type="text"
+                name="weight"
+                placeholder="Weight (e.g., 10 tons)"
+                value={form.weight}
+                onChange={handleChange}
+                className="input"
+                required
+                style={{ paddingLeft: '42px' }}
+              />
+            </div>
+
+            {/* Fare */}
+            <div className="input-group">
+              <IndianRupee size={18} className="input-icon" />
+              <input
+                type="number"
+                name="fare"
+                placeholder="Fare (in ₹)"
+                value={form.fare}
+                onChange={handleChange}
+                className="input"
+                required
+                style={{ paddingLeft: '42px' }}
+              />
+            </div>
+
+            {/* Load Details */}
+            <div className="input-group">
+              <FileText size={18} style={{
+                position: 'absolute',
+                left: '14px',
+                top: '16px',
+                color: 'var(--text-tertiary)',
+                pointerEvents: 'none',
+              }} />
+              <textarea
+                name="loadDetails"
+                placeholder="Load Details (describe your cargo)"
+                value={form.loadDetails}
+                onChange={handleChange}
+                className="input"
+                required
+                style={{ paddingLeft: '42px', minHeight: '100px', resize: 'vertical' }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '14px',
+                fontSize: '0.95rem',
+                borderRadius: 'var(--radius-md)',
+                marginTop: '8px',
+                opacity: loading ? 0.7 : 1,
+              }}
+            >
+              {loading ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    width: '18px', height: '18px', borderRadius: '50%',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: 'white',
+                    animation: 'spin 0.6s linear infinite',
+                    display: 'inline-block',
+                  }} />
+                  Posting...
+                </span>
+              ) : (
+                <>
+                  <CheckCircle size={18} />
+                  Post Load
+                </>
+              )}
+            </button>
+          </form>
+        </GlassCard>
+
+        {/* Map Modal */}
+        {selecting && (
+          <div className="modal-overlay" onClick={() => setSelecting(null)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{
+              width: '95%', maxWidth: '900px',
+              height: '80vh',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '16px',
+              }}>
+                <h3 style={{ fontWeight: '700', fontSize: '1.1rem' }}>
+                  <MapPin size={18} style={{ display: 'inline', verticalAlign: '-3px', marginRight: '8px' }} />
+                  Select {selecting === "source" ? "Source" : "Destination"} Location
+                </h3>
+                <button
+                  onClick={() => setSelecting(null)}
+                  className="btn btn-ghost"
+                  style={{ padding: '8px' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ flex: 1, borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                <MapContainer
+                  center={[20.5937, 78.9629]}
+                  zoom={5}
+                  style={{ height: "100%", width: "100%" }}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>'
+                  />
+                  <LocationPicker
+                    setCoords={(coords) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        [selecting]: coords,
+                      }))
+                    }
+                  />
+                  {form[selecting].lat && (
+                    <Marker
+                      position={[form[selecting].lat, form[selecting].lng]}
+                      icon={markerIcon}
+                    />
+                  )}
+                </MapContainer>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '16px',
+              }}>
+                <button onClick={() => setSelecting(null)} className="btn btn-ghost">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setSelecting(null)}
+                  className="btn btn-primary"
+                  disabled={!form[selecting]?.lat}
+                  style={{ opacity: form[selecting]?.lat ? 1 : 0.5 }}
+                >
+                  <CheckCircle size={16} />
+                  Confirm Location
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    </PageTransition>
   );
 }

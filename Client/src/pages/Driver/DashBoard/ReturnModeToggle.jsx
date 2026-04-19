@@ -1,6 +1,7 @@
 import { useState } from "react";
 import HomeLocationMap from "../HomeLocationMap/HomeLocationMap";
 import { getCurrentLocation } from "../../../utils/getCurrentLocation";
+import { RotateCcw, Home, Power } from 'lucide-react';
 
 export default function ReturnModeToggle({ isReturnMode, setIsReturnMode }) {
   const [showMap, setShowMap] = useState(false);
@@ -11,35 +12,34 @@ export default function ReturnModeToggle({ isReturnMode, setIsReturnMode }) {
     setShowMap(true);
   };
 
-  // ✅ NEW CORRECT FUNCTION (matches your backend)
   const confirmHomeLocation = async (home) => {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const current = await getCurrentLocation();
+      const current = await getCurrentLocation();
 
-    await fetch("http://localhost:3000/return/rides/start", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        driverLat: current.lat,
-        driverLng: current.lng,
-        homeLat: home.lat,
-        homeLng: home.lng
-      })
-    });
+      await fetch("http://localhost:3000/return/rides/start", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          driverLat: current.lat,
+          driverLng: current.lng,
+          homeLat: home.lat,
+          homeLng: home.lng
+        })
+      });
 
-    setIsReturnMode(true);
-    setShowMap(false);
+      setIsReturnMode(true);
+      setShowMap(false);
 
-  } catch (err) {
-    console.error(err);
-    alert("Failed to start return mode");
-  } finally {
-    setLoading(false);
-  }
-};
+    } catch (err) {
+      console.error(err);
+      alert("Failed to start return mode");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const disableReturnMode = async () => {
@@ -48,27 +48,68 @@ export default function ReturnModeToggle({ isReturnMode, setIsReturnMode }) {
       method: "DELETE",
       credentials: "include"
     });
-
   };
 
   return (
     <>
-      <button
-        onClick={isReturnMode ? disableReturnMode : enableReturnMode}
-        className={`px-4 py-2 rounded text-white ${
-          isReturnMode ? "bg-red-600" : "bg-green-600"
-        }`}
-      >
-        {isReturnMode ? "Exit Return Mode" : "Enter Return Mode"}
-      </button>
+      {/* Toggle Switch */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '14px',
+      }}>
+        <button
+          onClick={isReturnMode ? disableReturnMode : enableReturnMode}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '12px 24px',
+            borderRadius: 'var(--radius-lg)',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: '700',
+            fontSize: '0.9rem',
+            transition: 'all var(--transition-base)',
+            background: isReturnMode
+              ? 'var(--danger-soft)'
+              : 'var(--success-soft)',
+            color: isReturnMode ? 'var(--danger)' : 'var(--success)',
+            boxShadow: isReturnMode
+              ? '0 0 16px rgba(239,68,68,0.15)'
+              : '0 0 16px rgba(16,185,129,0.15)',
+          }}
+        >
+          {isReturnMode ? (
+            <>
+              <Power size={18} />
+              Exit Return Mode
+            </>
+          ) : (
+            <>
+              <Home size={18} />
+              Enter Return Mode
+            </>
+          )}
+        </button>
+
+        {isReturnMode && (
+          <span className="badge badge-active animate-fadeIn" style={{
+            padding: '6px 14px',
+            fontSize: '0.8rem',
+          }}>
+            <span className="dot"></span>
+            Return Mode Active
+          </span>
+        )}
+      </div>
 
       {showMap && (
         <HomeLocationMap
-  onConfirm={confirmHomeLocation}
-  onCancel={() => !loading && setShowMap(false)}
-  loading={loading}
-/>
-
+          onConfirm={confirmHomeLocation}
+          onCancel={() => !loading && setShowMap(false)}
+          loading={loading}
+        />
       )}
     </>
   );
