@@ -37,6 +37,7 @@ const { Server } = require("socket.io");
 const socketController = require("./controllers/socketController");
 
 dotenv.config();
+console.log("URL:", process.env.MONGODB_URL); // debug
 connectDB();
 
 
