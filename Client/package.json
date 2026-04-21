@@ -20,6 +20,7 @@
     "hbs": "^4.2.0",
     "jsonwebtoken": "^9.0.2",
     "jwt-decode": "^4.0.0",
+    "leaflet-geosearch": "^4.4.0",
     "leaflet-routing-machine": "^3.2.12",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.522.0",

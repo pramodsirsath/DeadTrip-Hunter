@@ -8,6 +8,7 @@ const {
 
 // Create checkout session
 router.post("/create-session", createCheckoutSession);
+router.post("/verify-session", require("../controllers/paymentController").verifySession);
 
 // Stripe webhook (IMPORTANT: raw body required)
 

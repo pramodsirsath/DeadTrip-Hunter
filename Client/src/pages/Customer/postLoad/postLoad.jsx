@@ -1,6 +1,8 @@
 import React, { useState } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet-geosearch/dist/geosearch.css";
+import { GeoSearchControl, OpenStreetMapProvider } from "leaflet-geosearch";
 import L from "leaflet";
 import { jwtDecode } from "jwt-decode";
 import { MapPin, Calendar, Truck, Weight, IndianRupee, FileText, ArrowRight, X, CheckCircle } from "lucide-react";
@@ -22,6 +24,26 @@ function LocationPicker({ setCoords }) {
       setCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
     },
   });
+  return null;
+}
+
+function SearchField() {
+  const map = useMap();
+  React.useEffect(() => {
+    const provider = new OpenStreetMapProvider();
+    const searchControl = new GeoSearchControl({
+      provider: provider,
+      style: 'bar',
+      showMarker: false,
+      autoClose: true,
+      retainZoomLevel: false,
+      animateZoom: true,
+      keepResult: true,
+      searchLabel: 'Search for address...'
+    });
+    map.addControl(searchControl);
+    return () => map.removeControl(searchControl);
+  }, [map]);
   return null;
 }
 
@@ -326,6 +348,7 @@ export default function PostLoad() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>'
                   />
+                  <SearchField />
                   <LocationPicker
                     setCoords={(coords) =>
                       setForm((prev) => ({

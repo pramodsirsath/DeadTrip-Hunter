@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { getReadableAddress } from "../../../utils/getReadableAddress";
 import { Clock, MapPin, ArrowRight } from 'lucide-react';
 
 const API = "http://localhost:3000";
 
-export default function DriverReservationBanner() {
+export default function DriverReservationBanner({ onRefresh }) {
 
   const [reservation, setReservation] = useState(null);
+  const reservationRef = useRef(null);
   const [pickupAddress, setPickupAddress] = useState("");
   const [dropAddress, setDropAddress] = useState("");
 
@@ -21,6 +22,13 @@ export default function DriverReservationBanner() {
       });
 
       const data = await res.json();
+      
+      // If reservation just cleared (payment completed or timeout)
+      if (reservationRef.current && !data) {
+        if (onRefresh) onRefresh();
+      }
+      reservationRef.current = data;
+
       setReservation(data);
 
       if (data?.ride) {

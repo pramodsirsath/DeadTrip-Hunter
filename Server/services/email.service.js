@@ -46,4 +46,28 @@ async function sendCustomerEmail(customerEmail, customerName, driver, load) {
     }
 }
 
-module.exports = { sendCustomerEmail };
+async function sendOtpEmail(email, otp) {
+    console.log("Sending OTP email to:", email);
+    const mailOptions = {
+        from: `"DeadTrip Hunter" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'DeadTrip Hunter - Email Verification OTP',
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+                <h2>Confirm your email address</h2>
+                <p>Welcome to DeadTrip Hunter! Please use the following One-Time Password to complete your registration:</p>
+                <h1 style="background: #f4f4f4; padding: 10px; display: inline-block; letter-spacing: 5px; border-radius: 5px;">${otp}</h1>
+                <p>This code will expire in 5 minutes.</p>
+            </div>
+        `
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log("OTP Email sent:", info.messageId);
+    } catch (err) {
+        console.error("Error sending OTP email:", err);
+    }
+}
+
+module.exports = { sendCustomerEmail, sendOtpEmail };

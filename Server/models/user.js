@@ -55,7 +55,15 @@ const userSchema = mongoose.Schema({
   fcmTokens: {
   type: [String],
   default: []
-}
+},
+    walletBalance: {
+        type: Number,
+        default: 0
+    },
+    cancellationCount: {
+        type: Number,
+        default: 0
+    }
 
 },
     {

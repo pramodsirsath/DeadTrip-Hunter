@@ -25,6 +25,7 @@ export default function LoadTable({ loads, onAccept }) {
             <th>Truck</th>
             <th>Date</th>
             <th>Weight</th>
+            <th>Fare</th>
             <th className="hide-mobile">Details</th>
             <th>Action</th>
           </tr>
@@ -51,6 +52,9 @@ export default function LoadTable({ loads, onAccept }) {
                 {new Date(ride.date).toLocaleDateString()}
               </td>
               <td>{ride.weight}</td>
+              <td style={{ fontWeight: '600', color: 'var(--success)' }}>
+                {ride.fare ? `₹${ride.fare}` : '-'}
+              </td>
               <td className="hide-mobile" style={{
                 maxWidth: '140px', overflow: 'hidden',
                 textOverflow: 'ellipsis', whiteSpace: 'nowrap',

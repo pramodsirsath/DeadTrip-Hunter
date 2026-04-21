@@ -606,7 +606,7 @@ textarea.input {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  z-index: 100;
+  z-index: 9999; /* Fix overlapping issue */
   display: flex;
   align-items: center;
   justify-content: center;

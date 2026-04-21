@@ -19,6 +19,16 @@ router.get("/accepted/:driverId", rideController.getAcceptedRides);
 
 // ✅ Driver accepts a ride
 router.patch("/:id/accept", rideController.acceptRide);
+
+// ✅ Driver starts a ride
+router.patch("/:rideId/start", rideController.startRide);
+
+// ✅ Driver cancels a ride
+router.patch("/:rideId/driver-cancel", rideController.driverCancelRide);
+
+// ✅ Complete a ride
+router.patch("/:rideId/complete", rideController.completeRide);
+
 router.get("/:rideId", rideController.getRideById);
 
 // Proxy to Nominatim

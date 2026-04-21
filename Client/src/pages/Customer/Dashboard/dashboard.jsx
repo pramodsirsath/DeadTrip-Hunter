@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from "react-router-dom";
-import { Package, UserCog, FileText, CreditCard, MapPin, ArrowRight, Truck, Clock, CheckCircle, XCircle, Eye, X } from 'lucide-react';
+import { Package, UserCog, FileText, CreditCard, MapPin, ArrowRight, Truck, Clock, CheckCircle, XCircle, Eye, X, History, Info } from 'lucide-react';
 import PageTransition from '../../../components/PageTransition/PageTransition';
 import GlassCard from '../../../components/GlassCard/GlassCard';
 import StatCard from '../../../components/StatCard/StatCard';
@@ -20,13 +20,32 @@ export default function CustomerDashboard() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const status = params.get("payment");
+    const reservationId = params.get("reservationId");
 
     if (status === "success") {
-      setPaymentStatus("success");
-      toast('Payment Successful! Your ride is confirmed.', 'success');
-      setTimeout(() => {
-        navigate("/customer/dashboard", { replace: true });
-      }, 3000);
+      if (reservationId) {
+        fetch(`http://localhost:3000/api/payment/verify-session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reservationId })
+        }).then(() => {
+          setPaymentStatus("success");
+          toast('Payment Successful! Your ride is confirmed.', 'success');
+          setTimeout(() => {
+            navigate("/customer/dashboard", { replace: true });
+            window.location.reload(); // Refresh to catch new status
+          }, 2000);
+        }).catch(err => {
+          console.error(err);
+          navigate("/customer/dashboard", { replace: true });
+        });
+      } else {
+        setPaymentStatus("success");
+        toast('Payment Successful! Your ride is confirmed.', 'success');
+        setTimeout(() => {
+          navigate("/customer/dashboard", { replace: true });
+        }, 3000);
+      }
     }
 
     if (status === "failed") {
@@ -83,23 +102,29 @@ export default function CustomerDashboard() {
   const [rides, setRides] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [addresses, setAddresses] = React.useState({});
+  const [showRefundModal, setShowRefundModal] = React.useState(false);
 
-  const handleCancel = (rideId) => {
-    fetch(`http://localhost:3000/rides/${rideId}/cancel`, {
-      method: 'PATCH',
-    })
-      .then(res => {
-        if (res.ok) {
-          setRides(rides.filter(ride => ride._id !== rideId));
-          toast("Ride cancelled successfully!", "success");
-        } else {
-          toast("Failed to cancel ride.", "error");
-        }
-      })
-      .catch(err => {
-        console.error("Error cancelling ride:", err);
-        toast("An error occurred while cancelling the ride.", "error");
+  const handleCancel = async (rideId) => {
+    try {
+      const res = await fetch(`http://localhost:3000/rides/${rideId}/cancel`, {
+        method: 'PATCH',
       });
+      const data = await res.json();
+      
+      if (res.ok) {
+        setRides(rides.filter(ride => ride._id !== rideId));
+        if (data.refundAmount !== undefined) {
+          toast(`Cancelled! Customer Refund: ₹${data.refundAmount} | Driver Comp: ₹${data.driverCompensation}`, "info");
+        } else {
+          toast("Ride cancelled successfully!", "success");
+        }
+      } else {
+        toast(data.error || "Failed to cancel ride.", "error");
+      }
+    } catch (err) {
+      console.error("Error cancelling ride:", err);
+      toast("An error occurred while cancelling the ride.", "error");
+    }
   };
 
   const getAddress = async (lat, lng) => {
@@ -156,11 +181,11 @@ export default function CustomerDashboard() {
 
   const getStatusBadge = (status) => {
     const badgeClass = `badge badge-${status}`;
-    const showDot = status === 'pending' || status === 'ongoing';
+    const showDot = status === 'pending' || status === 'in_progress';
     return (
       <span className={badgeClass}>
         {showDot && <span className="dot"></span>}
-        {status}
+        {status === 'in_progress' ? 'In Progress' : status}
       </span>
     );
   };
@@ -168,7 +193,7 @@ export default function CustomerDashboard() {
   // Stats
   const totalRides = rides.length;
   const pendingRides = rides.filter(r => r.status === 'pending').length;
-  const activeRides = rides.filter(r => r.status === 'accepted' || r.status === 'ongoing').length;
+  const activeRides = rides.filter(r => r.status === 'accepted' || r.status === 'in_progress').length;
   const completedRides = rides.filter(r => r.status === 'completed').length;
 
   return (
@@ -261,6 +286,30 @@ export default function CustomerDashboard() {
             </div>
             <ArrowRight size={18} style={{ marginLeft: 'auto', color: 'var(--text-tertiary)' }} />
           </Link>
+
+          <div onClick={() => setShowRefundModal(true)} className="glass-card animate-fadeInUp" style={{
+            padding: '20px 24px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            animationDelay: '0.35s',
+          }}>
+            <div style={{
+              width: '44px', height: '44px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--warning-soft)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--warning)', flexShrink: 0,
+            }}>
+              <History size={22} />
+            </div>
+            <div>
+              <p style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>Refund History</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>View cancelled rides</p>
+            </div>
+            <ArrowRight size={18} style={{ marginLeft: 'auto', color: 'var(--text-tertiary)' }} />
+          </div>
         </div>
 
         {/* Pending Payments */}
@@ -346,6 +395,7 @@ export default function CustomerDashboard() {
                     <th>Pickup</th>
                     <th>Drop</th>
                     <th>Status</th>
+                    <th>OTP</th>
                     <th>Fare</th>
                     <th>Action</th>
                     <th>Track</th>
@@ -362,12 +412,25 @@ export default function CustomerDashboard() {
                         {addresses[ride._id]?.drop || "Loading..."}
                       </td>
                       <td>{getStatusBadge(ride.status)}</td>
+                      <td>
+                        {ride.status === 'in_progress' && ride.completionOTP ? (
+                          <span style={{ fontWeight: 'bold', letterSpacing: '2px', color: 'var(--accent-purple)' }}>
+                            {ride.completionOTP}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>—</span>
+                        )}
+                      </td>
                       <td style={{ fontWeight: '600' }}>₹{ride.fare}</td>
                       <td>
-                        {ride.status === "pending" && (
+                        {['pending', 'accepted', 'in_progress'].includes(ride.status) && (
                           <button
                             className="btn btn-danger"
-                            onClick={() => handleCancel(ride._id)}
+                            onClick={() => {
+                              if(window.confirm('Are you sure you want to cancel? Cancellation fees may apply if the ride is already accepted.')) {
+                                handleCancel(ride._id);
+                              }
+                            }}
                             style={{ padding: '6px 14px', fontSize: '0.8rem' }}
                           >
                             <X size={14} />
@@ -376,7 +439,7 @@ export default function CustomerDashboard() {
                         )}
                       </td>
                       <td>
-                        {ride.status === "accepted" || ride.status === "ongoing" ? (
+                        {['accepted', 'in_progress'].includes(ride.status) ? (
                           <Link
                             to={`/track/${ride._id}`}
                             className="btn btn-outline"
@@ -396,6 +459,94 @@ export default function CustomerDashboard() {
             </div>
           )}
         </GlassCard>
+
+        {/* Refund History Modal */}
+        {showRefundModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+            padding: '20px'
+          }}>
+            <div className="glass-card animate-fadeInUp" style={{
+              width: '100%', maxWidth: '600px', maxHeight: '80vh',
+              background: 'var(--bg-primary)', overflowY: 'auto',
+              padding: '0', display: 'flex', flexDirection: 'column'
+            }}>
+              <div style={{ 
+                padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                position: 'sticky', top: 0, background: 'var(--bg-primary)', zIndex: 10
+              }}>
+                <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <History size={20} color="var(--warning)" />
+                  Cancellation & Refund History
+                </h2>
+                <button onClick={() => setShowRefundModal(false)} className="btn btn-ghost" style={{ padding: '8px' }}>
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div style={{ padding: '24px' }}>
+                {rides.filter(r => r.status === 'cancelled').length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px 0' }}>
+                    <Info size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
+                    <p>No cancelled rides found.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {rides.filter(r => r.status === 'cancelled').map(ride => (
+                      <div key={ride._id} style={{
+                        padding: '16px', borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>
+                            {new Date(ride.createdAt).toLocaleDateString()}
+                          </span>
+                          <span className="badge badge-danger">Cancelled by {ride.cancelledBy || 'System'}</span>
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '0.9rem' }}>
+                          <span style={{ maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {addresses[ride._id]?.pickup || "Unknown"}
+                          </span>
+                          <ArrowRight size={14} color="var(--text-tertiary)" />
+                          <span style={{ maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {addresses[ride._id]?.drop || "Unknown"}
+                          </span>
+                        </div>
+
+                        <div style={{ 
+                          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px',
+                          background: 'var(--bg-primary)', padding: '12px', borderRadius: 'var(--radius-sm)'
+                        }}>
+                          <div>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Your Refund</p>
+                            <p style={{ fontWeight: '700', color: 'var(--success)', fontSize: '1.1rem' }}>
+                              ₹{ride.refundAmount || 0}
+                            </p>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Cancellation Fee / Driver Comp</p>
+                            <p style={{ fontWeight: '700', color: 'var(--danger)', fontSize: '1.1rem' }}>
+                              ₹{ride.driverCompensation || 0}
+                            </p>
+                          </div>
+                        </div>
+                        {ride.cancellationReason && (
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '12px', fontStyle: 'italic' }}>
+                            Reason: {ride.cancellationReason}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </PageTransition>
   );

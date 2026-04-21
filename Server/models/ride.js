@@ -43,11 +43,31 @@ const rideSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "accepted", "completed", "cancelled"],
+      enum: ["pending", "accepted", "in_progress", "completed", "cancelled"],
       default: "pending",
     },
     acceptedAt: Date,
+    startedAt: Date,
     completedAt: Date,
+    advancePaid: {
+      type: Number,
+      default: 0,
+    },
+    completionOTP: String,
+    refundAmount: {
+      type: Number,
+      default: 0,
+    },
+    driverCompensation: {
+      type: Number,
+      default: 0,
+    },
+    cancelledBy: {
+      type: String,
+      enum: ["customer", "driver", "system", null],
+      default: null,
+    },
+    cancellationReason: String,
   },
   {
     timestamps: true,

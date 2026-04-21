@@ -1,6 +1,8 @@
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import { useState } from "react";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
+import { useState, useEffect } from "react";
 import "leaflet/dist/leaflet.css";
+import "leaflet-geosearch/dist/geosearch.css";
+import { GeoSearchControl, OpenStreetMapProvider } from "leaflet-geosearch";
 import L from "leaflet";
 import { MapPin, Home, X, CheckCircle } from 'lucide-react';
 
@@ -21,6 +23,38 @@ function LocationPicker({ onPick }) {
       onPick(e.latlng);
     }
   });
+  return null;
+}
+
+function SearchField({ onPick }) {
+  const map = useMap();
+  useEffect(() => {
+    const provider = new OpenStreetMapProvider();
+    const searchControl = new GeoSearchControl({
+      provider: provider,
+      style: 'bar',
+      showMarker: false,
+      autoClose: true,
+      retainZoomLevel: false,
+      animateZoom: true,
+      keepResult: true,
+      searchLabel: 'Search for location...'
+    });
+    map.addControl(searchControl);
+
+    const handleResult = (e) => {
+      if (onPick) {
+        onPick({ lat: e.location.y, lng: e.location.x });
+      }
+    };
+    
+    map.on('geosearch/showlocation', handleResult);
+
+    return () => {
+      map.off('geosearch/showlocation', handleResult);
+      map.removeControl(searchControl);
+    };
+  }, [map, onPick]);
   return null;
 }
 
@@ -77,7 +111,8 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
             style={{ height: '100%', width: '100%' }}
           >
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
+            
+            <SearchField onPick={setHomeLocation} />
             <LocationPicker onPick={setHomeLocation} />
 
             {homeLocation && (

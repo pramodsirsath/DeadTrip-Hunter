@@ -27,7 +27,7 @@ const fare = ride.fare >= 50 ? ride.fare :200;
         quantity: 1
       }
     ],
-   success_url: "http://localhost:5173/customer/dashboard?payment=success",
+   success_url: `http://localhost:5173/customer/dashboard?payment=success&reservationId=${reservation._id}`,
 cancel_url: "http://localhost:5173/customer/dashboard?payment=failed"
   });
 
@@ -86,6 +86,7 @@ exports.stripeWebhook = async (req, res) => {
       ride.status = "accepted";
       ride.driverId = reservation.driverId;
       ride.acceptedAt = new Date();
+      ride.advancePaid = (ride.fare >= 50 ? ride.fare : 200) * 0.25;
 
       await ride.save();
 
@@ -101,4 +102,40 @@ exports.stripeWebhook = async (req, res) => {
   }
 
   res.json({ received: true });
+};
+
+exports.verifySession = async (req, res) => {
+  const { reservationId } = req.body;
+  try {
+    const reservation = await RideReservation.findById(reservationId);
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found or already processed" });
+    }
+
+    if (!reservation.paymentSessionId) {
+      return res.status(400).json({ message: "No payment session found" });
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(reservation.paymentSessionId);
+
+    if (session.payment_status === "paid") {
+      const ride = await Ride.findById(reservation.rideId);
+      if (ride && ride.status !== "accepted") {
+        ride.status = "accepted";
+        ride.driverId = reservation.driverId;
+        ride.acceptedAt = new Date();
+        ride.advancePaid = (ride.fare >= 50 ? ride.fare : 200) * 0.25;
+        await ride.save();
+
+        await RideReservation.deleteOne({ _id: reservation._id });
+        return res.json({ success: true, message: "Payment verified and ride accepted." });
+      }
+      return res.json({ success: true, message: "Ride already accepted." });
+    } else {
+      return res.json({ success: false, message: "Payment not completed." });
+    }
+  } catch (error) {
+    console.error("Error verifying session", error);
+    res.status(500).json({ error: "Failed to verify session" });
+  }
 };
