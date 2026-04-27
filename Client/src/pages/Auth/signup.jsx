@@ -21,7 +21,17 @@ export default function Signup() {
     truckType: '',
     truckNumber: '',
     licenseNumber: '',
+    photo: null,
+    rcBook: null,
+    aadhar: null,
   });
+
+  const handleFileChange = (e) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.files[0],
+    }));
+  };
 
   const handleChange = (e) => {
     setFormData((prev) => ({
@@ -74,20 +84,22 @@ export default function Signup() {
       try {
         const location = await getCurrentLocation();
 
-        const dataToSend = {
-          ...formData,
-          role: role,
-          otp: otp,
-          location: {
-            type: "Point",
-            coordinates: [location.lng, location.lat]
+        const formToSend = new FormData();
+        Object.keys(formData).forEach(key => {
+          if (formData[key] !== null && formData[key] !== undefined) {
+             formToSend.append(key, formData[key]);
           }
-        };
+        });
+        formToSend.append('role', role);
+        formToSend.append('otp', otp);
+        formToSend.append('location', JSON.stringify({
+          type: "Point",
+          coordinates: [location.lng, location.lat]
+        }));
 
         const res = await fetch("http://localhost:3000/auth/register", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(dataToSend),
+          body: formToSend,
         });
 
         const data = await res.json();
@@ -271,6 +283,32 @@ export default function Signup() {
                         />
                       </div>
                     ))}
+                    
+                    {/* Document Uploads */}
+                    <div className="input-group">
+                      <span className="input-icon" style={{ zIndex: 1 }}><FileText size={18} /></span>
+                      <div style={{ paddingLeft: '42px', position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+                         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginRight: '10px' }}>Profile Photo</span>
+                         <input type="file" name="photo" accept="image/*" onChange={handleFileChange} required className="input" style={{ paddingLeft: '10px', paddingTop: '10px' }} />
+                      </div>
+                    </div>
+                    
+                    <div className="input-group">
+                      <span className="input-icon" style={{ zIndex: 1 }}><FileText size={18} /></span>
+                      <div style={{ paddingLeft: '42px', position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+                         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginRight: '10px' }}>RC Book</span>
+                         <input type="file" name="rcBook" accept="image/*,application/pdf" onChange={handleFileChange} required className="input" style={{ paddingLeft: '10px', paddingTop: '10px' }} />
+                      </div>
+                    </div>
+
+                    <div className="input-group">
+                      <span className="input-icon" style={{ zIndex: 1 }}><FileText size={18} /></span>
+                      <div style={{ paddingLeft: '42px', position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+                         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginRight: '10px' }}>Aadhar Card</span>
+                         <input type="file" name="aadhar" accept="image/*,application/pdf" onChange={handleFileChange} required className="input" style={{ paddingLeft: '10px', paddingTop: '10px' }} />
+                      </div>
+                    </div>
+
                   </div>
                 )}
 

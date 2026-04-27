@@ -1,6 +1,8 @@
 const stripe = require("../config/stripe");
 const RideReservation = require("../models/RideReservation");
 const Ride = require("../models/ride");
+const User = require("../models/user");
+const Withdrawal = require("../models/Withdrawal");
 
 exports.createCheckoutSession = async (req, res) => {
   const { reservationId } = req.body;
@@ -137,5 +139,57 @@ exports.verifySession = async (req, res) => {
   } catch (error) {
     console.error("Error verifying session", error);
     res.status(500).json({ error: "Failed to verify session" });
+  }
+};
+
+exports.withdrawFunds = async (req, res) => {
+  const { driverId, amount, upiId } = req.body;
+
+  try {
+    if (!driverId || !amount || !upiId) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const driver = await User.findById(driverId);
+    if (!driver || driver.role !== 'driver') {
+      return res.status(404).json({ error: "Driver not found" });
+    }
+
+    if (driver.walletBalance < amount) {
+      return res.status(400).json({ error: "Insufficient wallet balance" });
+    }
+
+    // Deduct from wallet
+    driver.walletBalance -= amount;
+    await driver.save();
+
+    // Create withdrawal record
+    const withdrawal = await Withdrawal.create({
+      driverId,
+      amount,
+      upiId,
+      status: "pending" // Admin must approve this
+    });
+
+    res.status(200).json({ 
+      message: "Withdrawal successful", 
+      withdrawal,
+      newBalance: driver.walletBalance
+    });
+
+  } catch (error) {
+    console.error("Error withdrawing funds:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+exports.getWithdrawalHistory = async (req, res) => {
+  const { driverId } = req.params;
+  try {
+    const withdrawals = await Withdrawal.find({ driverId }).sort({ createdAt: -1 });
+    res.status(200).json(withdrawals);
+  } catch (error) {
+    console.error("Error fetching withdrawal history:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };

@@ -9,7 +9,7 @@ import { getReadableAddress } from "../../../utils/getReadableAddress";
 import { getCurrentLocation } from "../../../utils/getCurrentLocation";
 import { generateFCMToken } from "../../../firebase/getFCMToken";
 import DriverReservationBanner from "./DriverReservationBanner";
-import { Truck, UserCog, ArrowRight, History, X, Info } from 'lucide-react';
+import { Truck, UserCog, ArrowRight, History, X, Info, Wallet, CheckCircle } from 'lucide-react';
 import PageTransition from '../../../components/PageTransition/PageTransition';
 import { useToast } from '../../../components/Toast/Toast';
 
@@ -22,8 +22,13 @@ export default function DriverDashboard() {
   const [returnLoads, setReturnLoads] = useState([]);
   const [acceptedLoads, setAcceptedLoads] = useState([]);
   const [historicalRides, setHistoricalRides] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [user, setUser] = useState(null);
+  
+  const [upiId, setUpiId] = useState("");
+  const [claimAmount, setClaimAmount] = useState("");
+  const [claiming, setClaiming] = useState(false);
 
   useEffect(() => {
     generateFCMToken();
@@ -125,6 +130,18 @@ export default function DriverDashboard() {
     }
   };
 
+  const fetchWithdrawals = async (driverId) => {
+    try {
+      const res = await fetch(`http://localhost:3000/api/payment/withdrawals/${driverId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setWithdrawals(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch withdrawals:", err);
+    }
+  };
+
   useEffect(() => {
     if (isReturnMode) {
       fetchReturnRides();
@@ -137,6 +154,7 @@ export default function DriverDashboard() {
     if (user?._id) {
       fetchAccepted(user._id);
       fetchHistoricalRides(user._id);
+      fetchWithdrawals(user._id);
     }
   }, [user?._id]);
 
@@ -237,6 +255,44 @@ export default function DriverDashboard() {
     }
   };
 
+  const handleClaim = async () => {
+    if (!upiId) return toast("Please enter your UPI ID", "error");
+    if (!claimAmount || isNaN(claimAmount) || Number(claimAmount) <= 0) {
+      return toast("Please enter a valid amount", "error");
+    }
+    if (Number(claimAmount) > (user?.walletBalance || 0)) {
+      return toast("Insufficient wallet balance", "error");
+    }
+
+    setClaiming(true);
+    try {
+      const res = await fetch("http://localhost:3000/api/payment/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          driverId: user._id,
+          amount: Number(claimAmount),
+          upiId
+        })
+      });
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error || "Failed to process withdrawal");
+      
+      toast("Withdrawal initiated successfully!", "success");
+      
+      setUser(prev => ({ ...prev, walletBalance: data.newBalance }));
+      setClaimAmount("");
+      setUpiId("");
+      fetchWithdrawals(user._id);
+      
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      setClaiming(false);
+    }
+  };
+
   return (
     <PageTransition>
       <div style={{
@@ -267,9 +323,9 @@ export default function DriverDashboard() {
           </div>
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <button onClick={() => setShowRefundModal(true)} className="btn btn-ghost" style={{ fontSize: '0.85rem', color: 'var(--warning)' }}>
-              <History size={16} />
-              Refund History
+            <button onClick={() => setShowRefundModal(true)} className="btn btn-ghost" style={{ fontSize: '0.85rem', color: 'var(--success)' }}>
+              <Wallet size={16} />
+              Wallet & History
             </button>
             <Link to="/driver/profile" className="btn btn-ghost" style={{ fontSize: '0.85rem' }}>
               <UserCog size={16} />
@@ -338,8 +394,8 @@ export default function DriverDashboard() {
                 position: 'sticky', top: 0, background: 'var(--bg-primary)', zIndex: 10
               }}>
                 <h2 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <History size={20} color="var(--warning)" />
-                  Cancellation & Penalty History
+                  <Wallet size={20} color="var(--success)" />
+                  Wallet & History
                 </h2>
                 <button onClick={() => setShowRefundModal(false)} className="btn btn-ghost" style={{ padding: '8px' }}>
                   <X size={20} />
@@ -347,7 +403,60 @@ export default function DriverDashboard() {
               </div>
               
               <div style={{ padding: '24px' }}>
-                {historicalRides.length === 0 ? (
+                {/* WALLET BALANCE & CLAIM SECTION */}
+                <div style={{
+                  background: 'var(--bg-secondary)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '20px',
+                  marginBottom: '24px',
+                  border: '1px solid var(--border-subtle)',
+                }}>
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Current Balance</p>
+                    <h3 style={{ fontSize: '2rem', color: 'var(--success)', fontWeight: '700', margin: '4px 0 0 0' }}>
+                      ₹{user?.walletBalance || 0}
+                    </h3>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '150px' }}>
+                      <input 
+                        type="number" 
+                        placeholder="Amount" 
+                        className="input" 
+                        value={claimAmount}
+                        onChange={(e) => setClaimAmount(e.target.value)}
+                      />
+                    </div>
+                    <div style={{ flex: 2, minWidth: '200px' }}>
+                      <input 
+                        type="text" 
+                        placeholder="UPI VPA ID (e.g., driver@upi)" 
+                        className="input" 
+                        value={upiId}
+                        onChange={(e) => setUpiId(e.target.value)}
+                      />
+                    </div>
+                    <button 
+                      className="btn btn-success" 
+                      onClick={handleClaim}
+                      disabled={claiming || !user?.walletBalance}
+                      style={{
+                        opacity: claiming || !user?.walletBalance ? 0.6 : 1,
+                        cursor: claiming || !user?.walletBalance ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {claiming ? "Processing..." : "Claim Funds"}
+                    </button>
+                  </div>
+                </div>
+
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <History size={18} />
+                  Transactions & Penalties
+                </h3>
+
+                {(historicalRides.length === 0 && withdrawals.length === 0) ? (
                   <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px 0' }}>
                     <Info size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
                     <p>No cancelled rides found.</p>
@@ -400,6 +509,46 @@ export default function DriverDashboard() {
                             Reason: {ride.cancellationReason}
                           </p>
                         )}
+                      </div>
+                    ))}
+
+                    {/* Show Withdrawals */}
+                    {withdrawals.map(wd => (
+                      <div key={wd._id} style={{
+                        padding: '16px', borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)', background: 'var(--bg-secondary)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>
+                            {new Date(wd.createdAt).toLocaleDateString()}
+                          </span>
+                          <span className={`badge badge-${wd.status === 'completed' ? 'success' : 'pending'}`}>
+                            {wd.status}
+                          </span>
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                          <CheckCircle size={16} color="var(--success)" />
+                          <span style={{ fontWeight: '600' }}>Fund Withdrawal</span>
+                        </div>
+
+                        <div style={{ 
+                          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px',
+                          background: 'var(--bg-primary)', padding: '12px', borderRadius: 'var(--radius-sm)'
+                        }}>
+                          <div>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '4px' }}>Amount Sent</p>
+                            <p style={{ fontWeight: '700', color: 'var(--success)', fontSize: '1.1rem' }}>
+                              ₹{wd.amount}
+                            </p>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '4px' }}>UPI ID</p>
+                            <p style={{ fontWeight: '600', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                              {wd.upiId}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>

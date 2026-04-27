@@ -660,3 +660,47 @@ textarea.input {
   border-radius: var(--radius-md);
   z-index: 1;
 }
+
+/* ===== LEAFLET GEOSEARCH OVERRIDES ===== */
+.leaflet-control-geosearch form {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-medium) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.leaflet-control-geosearch form input {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  font-family: inherit !important;
+  outline: none !important;
+}
+
+.leaflet-control-geosearch form input::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+.leaflet-control-geosearch .results {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-medium) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-primary) !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
+}
+
+.leaflet-control-geosearch .results > * {
+  border-bottom: 1px solid var(--border-subtle) !important;
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+}
+
+.leaflet-control-geosearch .results > *:hover {
+  background: var(--bg-hover) !important;
+}
+
+.leaflet-control-geosearch a.reset {
+  color: var(--text-tertiary) !important;
+  background: transparent !important;
+}

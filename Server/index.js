@@ -8,6 +8,7 @@ const cors = require("cors");
 const nodemailer = require("nodemailer");
 const geoRoutes = require("./routes/geoRoutes");
 const returnLoadRoute = require("./routes/returnLoadRoute");
+const adminRoutes = require("./routes/adminRoutes");
 
 const reservationRoutes = require("./routes/reservationRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
@@ -47,11 +48,14 @@ connectDB();
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+const path = require("path");
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ✅ Routes
 app.use("/auth", authRoutes);
 app.use("/rides", rideRoutes);
 app.use("/geo", geoRoutes);
+app.use("/admin", adminRoutes);
 
 app.use("/return", returnLoadRoute);
 // Ride + Live Tracking APIs

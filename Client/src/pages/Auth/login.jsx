@@ -33,6 +33,8 @@ export default function Login() {
         setTimeout(() => {
           if (role === 'driver') {
             navigate('/driver/dashboard');
+          } else if (role === 'admin') {
+            navigate('/admin/dashboard');
           } else {
             navigate('/customer/dashboard');
           }

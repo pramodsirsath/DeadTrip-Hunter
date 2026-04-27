@@ -42,7 +42,17 @@ function SearchField() {
       searchLabel: 'Search for address...'
     });
     map.addControl(searchControl);
-    return () => map.removeControl(searchControl);
+
+    const handleResult = (e) => {
+      map.flyTo([e.location.y, e.location.x], 15);
+    };
+    
+    map.on('geosearch/showlocation', handleResult);
+
+    return () => {
+      map.off('geosearch/showlocation', handleResult);
+      map.removeControl(searchControl);
+    };
   }, [map]);
   return null;
 }

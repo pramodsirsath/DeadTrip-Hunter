@@ -1,5 +1,6 @@
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import "leaflet/dist/leaflet.css";
 import "leaflet-geosearch/dist/geosearch.css";
 import { GeoSearchControl, OpenStreetMapProvider } from "leaflet-geosearch";
@@ -46,6 +47,7 @@ function SearchField({ onPick }) {
       if (onPick) {
         onPick({ lat: e.location.y, lng: e.location.x });
       }
+      map.flyTo([e.location.y, e.location.x], 15);
     };
     
     map.on('geosearch/showlocation', handleResult);
@@ -61,7 +63,7 @@ function SearchField({ onPick }) {
 export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
   const [homeLocation, setHomeLocation] = useState(null);
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={() => !loading && onCancel()}>
       <div className="modal-content animate-scaleIn" onClick={(e) => e.stopPropagation()} style={{
         width: '95%',
@@ -207,6 +209,7 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }

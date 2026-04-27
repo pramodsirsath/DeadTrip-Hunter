@@ -12,6 +12,7 @@ import DriverProfile from './pages/Driver/profile/profile';
 import { listenNotifications } from './firebase/notificationListener';
 import { ToastProvider } from './components/Toast/Toast';
 import Navbar from './components/Navbar/Navbar';
+import AdminDashboard from './pages/Admin/Dashboard/AdminDashboard';
 
 import TrackRide from './pages/TrackRide';
 import 'leaflet/dist/leaflet.css';
@@ -58,7 +59,11 @@ function AppContent() {
               <Route path="/driver/profile" element={<DriverProfile />} />
               <Route path="/driver/dashboard" element={<DriverDashboard />} />
             </Route>
-            
+
+            {/* Admin Routes */}
+            <Route element={<ProtectedRoute allowedRole="admin" />}>
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            </Route>
             
             {/* Map Route */}
           {/* <Route path="/map" element={<Map />} /> */}

@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const userSchema = mongoose.Schema({
     role: {
         type: String,
-        enum: ['driver', 'customer'],
+        enum: ['driver', 'customer', 'admin'],
         required: true,
     },
 
@@ -44,13 +44,12 @@ const userSchema = mongoose.Schema({
     truckNumber: {
         type: String,
         unique: true,
-         sparse: true, // Allows multiple null values
-        default: null
+        sparse: true
     },
     licenseNumber: {
         type: String,
         unique: true,
-        default: null
+        sparse: true
     },
   fcmTokens: {
   type: [String],
@@ -63,6 +62,15 @@ const userSchema = mongoose.Schema({
     cancellationCount: {
         type: Number,
         default: 0
+    },
+    isApproved: {
+        type: Boolean,
+        default: false
+    },
+    documents: {
+        photo: { type: String, default: null },
+        rcBook: { type: String, default: null },
+        aadhar: { type: String, default: null }
     }
 
 },

@@ -33,7 +33,14 @@ module.exports.sendOtp = async function(req, res) {
 }
 
 module.exports.register=async function(req,res){
-   const {role,name,email,phone,location,password,truckNumber,truckType,licenseNumber,otp}=req.body;
+   const {role,name,email,phone,password,truckNumber,truckType,licenseNumber,otp}=req.body;
+   const locationData = req.body.location; // might be stringified if sent via FormData
+   let parsedLocation;
+   try {
+     parsedLocation = typeof locationData === 'string' ? JSON.parse(locationData) : locationData;
+   } catch(e) {
+     parsedLocation = { type: "Point", coordinates: [0, 0] };
+   }
 
    try{
     if(!name || !email || !phone || !password){
@@ -61,17 +68,25 @@ module.exports.register=async function(req,res){
     const salt = await bcrypt.genSalt();
     const hashedPassword=await bcrypt.hash(password,salt);
     
+     let documents = {};
+     if (req.files) {
+       documents.photo = req.files.photo ? req.files.photo[0].filename : null;
+       documents.rcBook = req.files.rcBook ? req.files.rcBook[0].filename : null;
+       documents.aadhar = req.files.aadhar ? req.files.aadhar[0].filename : null;
+     }
 
      user =await User.create({
         role,
         name,
         email,
         phone,
-        location,
+        location: parsedLocation,
         password:hashedPassword,
-        truckType, // Default value for truckType
-        truckNumber, // Default value for truckNumber
-        licenseNumber, // Default value for licenseNumber
+        truckType: truckType || undefined, 
+        truckNumber: truckNumber || undefined, 
+        licenseNumber: licenseNumber || undefined,
+        isApproved: role === 'driver' ? false : true,
+        documents
     })
     // Create a token
     const token =jwt.sign({id:user._id},process.env.JWT_SECRET,{
@@ -120,6 +135,13 @@ module.exports.login=async function(req,res){
             message:"Invalid Password"
         })
     }
+
+    if (user.role === 'driver' && !user.isApproved) {
+        return res.status(403).json({
+            message: "Your account is pending admin approval."
+        });
+    }
+
     const token =jwt.sign({id:user._id},process.env.JWT_SECRET,{
         expiresIn:"2d",
     })
