@@ -1,29 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { MapContainer, TileLayer, Marker, Polyline } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "../components/leafletConfig"; // fixed marker icons
+import { GoogleMap, Marker, Polyline, useJsApiLoader } from "@react-google-maps/api";
+
 import io from "socket.io-client";
-import { ArrowLeft, Navigation, MapPin } from 'lucide-react';
+import { ArrowLeft, Navigation, MapPin, Compass, ExternalLink } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner/LoadingSpinner';
 
 const socket = io("http://localhost:3000");
 
-const driverIcon = new L.Icon({
-  iconUrl: "/driver-marker.png", // custom driver icon
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-});
-const SourceIcon = new L.Icon({
-  iconUrl: "/sourceIcon.png", // custom driver icon
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-});
-const DestinationIcon = new L.Icon({
-  iconUrl: "/destinationIcon.png", // custom driver icon
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-});
+const libraries = ['places'];
+const mapContainerStyle = { width: "100%", height: "100%" };
+
+const driverIconUrl = "/driver-marker.png";
+const SourceIconUrl = "/sourceIcon.png";
+const DestinationIconUrl = "/destinationIcon.png";
 
 export default function TrackRide() {
   const { rideId } = useParams();
@@ -31,6 +21,33 @@ export default function TrackRide() {
   const [source, setSource] = useState(null);
   const [destination, setDestination] = useState(null);
   const [routeCoords, setRouteCoords] = useState([]);
+  
+  // Navigation Mode States
+  const [isDrivingMode, setIsDrivingMode] = useState(false);
+  const [heading, setHeading] = useState(0);
+  const prevLocationRef = React.useRef(null);
+
+  // Check if current user is driver
+  const userRole = localStorage.getItem("role");
+  const isDriver = userRole === "driver";
+
+  // Helper to calculate bearing
+  const getBearing = (start, end) => {
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const toDeg = (rad) => (rad * 180) / Math.PI;
+    const dLng = toRad(end.lng - start.lng);
+    const lat1 = toRad(start.lat);
+    const lat2 = toRad(end.lat);
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+  };
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries,
+  });
 
   // Fetch ride & listen for driver location
   useEffect(() => {
@@ -40,15 +57,25 @@ export default function TrackRide() {
       .then((res) => res.json())
       .then((data) => {
         if (data.source && data.destination) {
-          setSource([data.source.coordinates[1], data.source.coordinates[0]]);
-          setDestination([data.destination.coordinates[1], data.destination.coordinates[0]]);
+          setSource({ lat: data.source.coordinates[1], lng: data.source.coordinates[0] });
+          setDestination({ lat: data.destination.coordinates[1], lng: data.destination.coordinates[0] });
         }
       });
 
     socket.emit("joinRide", rideId);
     socket.on("driverLocationUpdate", (data) => {
       if (data.rideId === rideId) {
-        setDriverLocation([data.coordinates[1], data.coordinates[0]]);
+        const newLoc = { lat: data.coordinates[1], lng: data.coordinates[0] };
+        
+        if (prevLocationRef.current) {
+          const newHeading = getBearing(prevLocationRef.current, newLoc);
+          // Only update heading if moved significantly
+          if (newLoc.lat !== prevLocationRef.current.lat || newLoc.lng !== prevLocationRef.current.lng) {
+            setHeading(newHeading);
+          }
+        }
+        prevLocationRef.current = newLoc;
+        setDriverLocation(newLoc);
       }
     });
 
@@ -63,14 +90,14 @@ export default function TrackRide() {
     const fetchRoute = async () => {
       if (!driverLocation || !source || !destination) return;
 
-      const coordsStr = `${driverLocation[1]},${driverLocation[0]};${source[1]},${source[0]};${destination[1]},${destination[0]}`;
+      const coordsStr = `${driverLocation.lng},${driverLocation.lat};${source.lng},${source.lat};${destination.lng},${destination.lat}`;
       const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
 
       try {
         const res = await fetch(url);
         const data = await res.json();
         if (data.routes && data.routes[0]) {
-          const route = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+          const route = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng }));
           setRouteCoords(route);
         }
       } catch (err) {
@@ -87,31 +114,38 @@ export default function TrackRide() {
       height: 'calc(100vh - 64px)',
       position: 'relative',
     }}>
-      {source && destination ? (
+      {isLoaded && source && destination ? (
         <>
-          <MapContainer
+          <GoogleMap
+            mapContainerStyle={mapContainerStyle}
             center={driverLocation || source}
-            zoom={7}
-            scrollWheelZoom={true}
-            style={{ width: "100%", height: "100%" }}
+            zoom={isDrivingMode ? 17 : 7}
+            heading={isDrivingMode ? heading : 0}
+            tilt={isDrivingMode ? 60 : 0}
+            options={{ 
+              streetViewControl: false, 
+              mapTypeControl: false,
+              fullscreenControl: false,
+              zoomControl: !isDrivingMode
+            }}
           >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution="&copy; OpenStreetMap contributors"
-            />
-            <Marker position={source} icon={SourceIcon} />
-            <Marker position={destination} icon={DestinationIcon} />
-            {driverLocation && <Marker position={driverLocation} icon={driverIcon} />}
-            {routeCoords.length > 0 && <Polyline positions={routeCoords} color="#3b82f6" weight={4} opacity={0.8} />}
-          </MapContainer>
+            <Marker position={source} icon={{ url: SourceIconUrl, scaledSize: isLoaded ? new window.google.maps.Size(40, 40) : null }} />
+            <Marker position={destination} icon={{ url: DestinationIconUrl, scaledSize: isLoaded ? new window.google.maps.Size(40, 40) : null }} />
+            {driverLocation && <Marker position={driverLocation} icon={{ url: driverIconUrl, scaledSize: isLoaded ? new window.google.maps.Size(40, 40) : null }} />}
+            {routeCoords.length > 0 && <Polyline path={routeCoords} options={{ strokeColor: "#3b82f6", strokeWeight: 4, strokeOpacity: 0.8 }} />}
+          </GoogleMap>
 
           {/* Overlay Header */}
-          <div className="glass-strong animate-fadeInDown" style={{
+          <div className="animate-fadeInDown" style={{
             position: 'absolute',
             top: '16px',
             left: '16px',
             right: '16px',
             zIndex: 1000,
+            background: 'var(--bg-secondary)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-lg)',
             padding: '12px 20px',
             display: 'flex',
@@ -147,6 +181,55 @@ export default function TrackRide() {
               </span>
             )}
           </div>
+
+          {/* Navigation Controls (Driver Only) */}
+          {isDriver && driverLocation && (
+            <div style={{
+              position: 'absolute',
+              bottom: '30px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              gap: '12px',
+              zIndex: 1000,
+            }}>
+              <button
+                onClick={() => setIsDrivingMode(!isDrivingMode)}
+                className={`btn ${isDrivingMode ? 'btn-danger' : 'btn-primary'}`}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '30px',
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '1rem',
+                  fontWeight: '600'
+                }}
+              >
+                <Compass size={20} />
+                {isDrivingMode ? 'Exit Nav' : 'Start Nav'}
+              </button>
+
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${destination.lat},${destination.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary"
+                style={{
+                  padding: '12px',
+                  borderRadius: '50%',
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title="Open in Maps App"
+              >
+                <ExternalLink size={20} />
+              </a>
+            </div>
+          )}
         </>
       ) : (
         <div style={{

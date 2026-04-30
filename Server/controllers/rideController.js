@@ -1,10 +1,39 @@
 const Ride = require('../models/ride');
 const User = require('../models/user');
 const RideReservation = require("../models/RideReservation");
-const { sendCustomerEmail } = require('../services/email.service');
+const { sendCancellationEmail } = require('../services/email.service');
 
 // ✅ Create Ride (customer posts a load)
 const sendNotification = require("../utils/sendNotification");
+
+// Helper: reverse geocode coordinates to address string
+const getAddressFromCoords = async (lat, lng) => {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      {
+        headers: {
+          "User-Agent": "DeadtripHunter/1.0 (contact@deadtrip.com)"
+        }
+      }
+    );
+    const data = await res.json();
+    if (data.address) {
+      const taluka = data.address.village || data.address.town || data.address.suburb || data.address.city || data.address.county || "";
+      const district = data.address.state_district || data.address.county || "";
+      const state = data.address.state || "";
+      const parts = [];
+      if (taluka) parts.push(taluka);
+      if (district && district !== taluka) parts.push(district);
+      if (state && state !== district && state !== taluka) parts.push(state);
+      return parts.join(", ") || "Unknown Location";
+    }
+    return data.display_name || "Unknown";
+  } catch (err) {
+    console.error("Error fetching address:", err);
+    return "Unknown";
+  }
+};
 
 
 
@@ -93,6 +122,12 @@ module.exports.getUserRides = async (req, res) => {
 
 
 // ✅ Cancel a ride (Customer cancels)
+// Refund tiers based on time since acceptance:
+//   ≤10 min  → 100% customer, 0% driver
+//   10–30 min → 75% customer, 25% driver
+//   30–60 min → 50% customer, 50% driver
+//   >60 min  → 0% customer, 100% driver
+//   in_progress → 0% customer, 100% driver
 module.exports.cancelRide = async (req, res) => {
   try {
     const rideId = req.params.rideId;
@@ -114,26 +149,40 @@ module.exports.cancelRide = async (req, res) => {
       let refundPct = 0;
       let driverPct = 0;
 
-      if (ride.status === "in_progress") {
-        // After ride started -> 100% driver
-        refundPct = 0;
-        driverPct = 100;
-      } else {
-        // Ride is "accepted", check time difference
-        const now = new Date();
-        const diffInMinutes = (now - new Date(ride.acceptedAt)) / (1000 * 60);
+      // Check time difference since acceptance
+      const now = new Date();
+      const acceptedTime = ride.acceptedAt ? new Date(ride.acceptedAt) : null;
 
-        if (diffInMinutes <= 10) {
-          refundPct = 90;
-          driverPct = 10;
-        } else if (diffInMinutes <= 20) {
-          refundPct = 50;
-          driverPct = 50;
+      console.log("[CANCEL DEBUG] Now:", now.toISOString());
+      console.log("[CANCEL DEBUG] AcceptedAt:", acceptedTime ? acceptedTime.toISOString() : "NOT SET");
+      console.log("[CANCEL DEBUG] Ride Status at Cancel:", ride.status);
+
+      if (!acceptedTime) {
+          // If acceptedAt was never set (legacy rides), give full refund
+          console.log("[CANCEL DEBUG] acceptedAt is null — giving full refund");
+          refundPct = 100;
+          driverPct = 0;
         } else {
-          // After 20 mins -> 100% driver
-          refundPct = 0;
-          driverPct = 100;
-        }
+          const diffInMinutes = (now - acceptedTime) / (1000 * 60);
+          console.log("[CANCEL DEBUG] Diff in minutes:", diffInMinutes.toFixed(2));
+
+          if (diffInMinutes <= 10) {
+            // Within 10 minutes — full refund to customer
+            refundPct = 100;
+            driverPct = 0;
+          } else if (diffInMinutes <= 30) {
+            // 10-30 minutes — 75% customer, 25% driver
+            refundPct = 75;
+            driverPct = 25;
+          } else if (diffInMinutes <= 60) {
+            // 30-60 minutes — 50/50
+            refundPct = 50;
+            driverPct = 50;
+          } else {
+            // After 60 minutes — 100% driver
+            refundPct = 0;
+            driverPct = 100;
+          }
       }
 
       const advance = ride.advancePaid || 0;
@@ -149,23 +198,47 @@ module.exports.cancelRide = async (req, res) => {
 
       // Update wallets
       const customer = await User.findById(ride.customer_id);
-      if (customer) {
+      if (customer && refundAmount > 0) {
         customer.walletBalance = (customer.walletBalance || 0) + refundAmount;
         await customer.save();
       }
 
+      let driver = null;
       if (ride.driverId) {
-        const driver = await User.findById(ride.driverId);
-        if (driver) {
+        driver = await User.findById(ride.driverId);
+        if (driver && driverComp > 0) {
           driver.walletBalance = (driver.walletBalance || 0) + driverComp;
           await driver.save();
         }
       }
 
+      // 📧 Send cancellation emails to both parties
+      if (customer && driver) {
+        const [srcLng, srcLat] = ride.source?.coordinates || [];
+        const [destLng, destLat] = ride.destination?.coordinates || [];
+        const sourceAddress = srcLat && srcLng ? await getAddressFromCoords(srcLat, srcLng) : "N/A";
+        const destinationAddress = destLat && destLng ? await getAddressFromCoords(destLat, destLng) : "N/A";
+
+        sendCancellationEmail({
+          customer,
+          driver,
+          ride,
+          sourceAddress,
+          destinationAddress,
+          refundAmount,
+          driverCompensation: driverComp,
+          cancelledBy: "customer"
+        }).catch(err => console.error("[CANCEL] Email send error:", err));
+      }
+
+      console.log("[CANCEL] Ride cancelled:", { advance, refundPct, driverPct, refundAmount, driverComp });
+
       return res.status(200).json({ 
         message: "Ride cancelled with time-based rules", 
         refundAmount, 
-        driverCompensation: driverComp 
+        driverCompensation: driverComp,
+        refundPercentage: refundPct,
+        acceptedAt: ride.acceptedAt,
       });
     }
 
@@ -250,6 +323,25 @@ module.exports.driverCancelRide = async (req, res) => {
     if (driver) {
       driver.cancellationCount = (driver.cancellationCount || 0) + 1;
       await driver.save();
+    }
+
+    // 📧 Send cancellation emails to both parties
+    if (customer && driver) {
+      const [srcLng, srcLat] = ride.source?.coordinates || [];
+      const [destLng, destLat] = ride.destination?.coordinates || [];
+      const sourceAddress = srcLat && srcLng ? await getAddressFromCoords(srcLat, srcLng) : "N/A";
+      const destinationAddress = destLat && destLng ? await getAddressFromCoords(destLat, destLng) : "N/A";
+
+      sendCancellationEmail({
+        customer,
+        driver,
+        ride,
+        sourceAddress,
+        destinationAddress,
+        refundAmount: advance,
+        driverCompensation: 0,
+        cancelledBy: "driver"
+      }).catch(err => console.error("[CANCEL] Email send error:", err));
     }
 
     res.status(200).json({ message: "Ride cancelled by driver. Customer fully refunded.", refundAmount: advance });
@@ -407,25 +499,8 @@ module.exports.getAcceptedRides = async (req, res) => {
 
 
 // ✅ Accept Ride (driver accepts customer's load)
-
-const getAddress = async (lat, lng) => {
-  try {
-    const res = await fetch(
-      `http://localhost:3000/rides/api/reverse-geocode?lat=${lat}&lon=${lng}`
-    );
-    const data = await res.json();
-    return (
-      data.display_name ||
-      data.address?.city ||
-      data.address?.town ||
-      data.address?.village ||
-      "Unknown"
-    );
-  } catch (err) {
-    console.error("Error fetching address:", err);
-    return "Error";
-  }
-};
+// Note: This creates a reservation. The actual ride acceptance happens
+// in paymentController after customer completes payment (stripeWebhook / verifySession).
 
 module.exports.acceptRide = async (req, res) => {
   try {
@@ -464,32 +539,9 @@ module.exports.acceptRide = async (req, res) => {
       reservationId: reservation._id
     });
 
-    // ✅ Notify customer via email
+    // Note: Email notifications are now sent from paymentController
+    // after payment is confirmed (stripeWebhook / verifySession).
 
-    const [srcLng, srcLat] = ride.source?.coordinates || [];
-    const [destLng, destLat] = ride.destination?.coordinates || [];
-
-    const source = srcLat && srcLng ? await getAddress(srcLat, srcLng) : "N/A";
-    const destination = destLat && destLng ? await getAddress(destLat, destLng) : "N/A";
-
-    await sendCustomerEmail(
-      customer.email,
-      customer.name,
-      {
-        driverName: driver.name,
-        phone: driver.phone,
-        truckType: ride.truckType,
-        vehicleNumber: driver.truckNumber || 'N/A',
-      },
-      {
-        source: source,
-        destination: destination,
-        weight: ride.weight,
-        date: ride.acceptedAt,
-      }
-    );
-
-    res.status(200).json({ message: "Ride accepted successfully", ride });
   } catch (error) {
     console.error("Error accepting ride:", error);
     res.status(500).json({ error: "Internal server error" });

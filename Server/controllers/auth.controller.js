@@ -70,9 +70,9 @@ module.exports.register=async function(req,res){
     
      let documents = {};
      if (req.files) {
-       documents.photo = req.files.photo ? req.files.photo[0].filename : null;
-       documents.rcBook = req.files.rcBook ? req.files.rcBook[0].filename : null;
-       documents.aadhar = req.files.aadhar ? req.files.aadhar[0].filename : null;
+       documents.photo = req.files.photo ? req.files.photo[0].path : null;
+       documents.rcBook = req.files.rcBook ? req.files.rcBook[0].path : null;
+       documents.aadhar = req.files.aadhar ? req.files.aadhar[0].path : null;
      }
 
      user =await User.create({

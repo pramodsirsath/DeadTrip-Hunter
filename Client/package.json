@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.8",
     "@tailwindcss/vite": "^4.1.10",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
@@ -20,8 +21,6 @@
     "hbs": "^4.2.0",
     "jsonwebtoken": "^9.0.2",
     "jwt-decode": "^4.0.0",
-    "leaflet-geosearch": "^4.4.0",
-    "leaflet-routing-machine": "^3.2.12",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.522.0",
     "mongoose": "^8.15.2",
@@ -30,7 +29,8 @@
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2",
     "socket.io-client": "^4.8.1",
-    "tailwindcss": "^4.1.10"
+    "tailwindcss": "^4.1.10",
+    "use-places-autocomplete": "^4.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

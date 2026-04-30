@@ -62,6 +62,8 @@ export default function CustomerDashboard() {
   const decoded = jwtDecode(token);
   const userId = decoded.id;
 
+  const [pendingPaymentAddresses, setPendingPaymentAddresses] = useState({});
+
   const fetchPendingPayments = async () => {
     try {
       const res = await fetch(
@@ -73,6 +75,18 @@ export default function CustomerDashboard() {
       );
       const data = await res.json();
       setPendingPayments(data);
+
+      // Fetch addresses for pending payments
+      const addrMap = { ...pendingPaymentAddresses };
+      for (const ride of data) {
+        if (addrMap[ride._id]) continue; // Already fetched
+        const [srcLng, srcLat] = ride.source?.coordinates || [];
+        const [destLng, destLat] = ride.destination?.coordinates || [];
+        const pickup = srcLat && srcLng ? await getAddress(srcLat, srcLng) : "N/A";
+        const drop = destLat && destLng ? await getAddress(destLat, destLng) : "N/A";
+        addrMap[ride._id] = { pickup, drop };
+      }
+      setPendingPaymentAddresses(addrMap);
     } catch (err) {
       console.error(err);
     }
@@ -113,8 +127,10 @@ export default function CustomerDashboard() {
       
       if (res.ok) {
         setRides(rides.filter(ride => ride._id !== rideId));
-        if (data.refundAmount !== undefined) {
-          toast(`Cancelled! Customer Refund: ₹${data.refundAmount} | Driver Comp: ₹${data.driverCompensation}`, "info");
+        if (data.refundAmount !== undefined && data.refundAmount > 0) {
+          toast(`Cancelled! Refund: ₹${data.refundAmount} (${data.refundPercentage || 0}%) | Driver: ₹${data.driverCompensation}`, "info");
+        } else if (data.driverCompensation > 0) {
+          toast(`Cancelled! No refund — Driver receives ₹${data.driverCompensation}`, "warning");
         } else {
           toast("Ride cancelled successfully!", "success");
         }
@@ -339,10 +355,10 @@ export default function CustomerDashboard() {
                     <tr key={ride._id}>
                       <td>{idx + 1}</td>
                       <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {addresses[ride._id]?.pickup || "Loading..."}
+                        {pendingPaymentAddresses[ride._id]?.pickup || "Loading..."}
                       </td>
                       <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {addresses[ride._id]?.drop || "Loading..."}
+                        {pendingPaymentAddresses[ride._id]?.drop || "Loading..."}
                       </td>
                       <td style={{ fontWeight: '700', color: 'var(--warning)' }}>₹{ride.fare}</td>
                       <td>

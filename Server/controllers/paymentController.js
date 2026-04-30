@@ -3,6 +3,69 @@ const RideReservation = require("../models/RideReservation");
 const Ride = require("../models/ride");
 const User = require("../models/user");
 const Withdrawal = require("../models/Withdrawal");
+const { sendRideAcceptedEmail } = require("../services/email.service");
+
+// Helper: reverse geocode coordinates to address string
+const getAddress = async (lat, lng) => {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      {
+        headers: {
+          "User-Agent": "DeadtripHunter/1.0 (contact@deadtrip.com)"
+        }
+      }
+    );
+    const data = await res.json();
+    if (data.address) {
+      const taluka = data.address.village || data.address.town || data.address.suburb || data.address.city || data.address.county || "";
+      const district = data.address.state_district || data.address.county || "";
+      const state = data.address.state || "";
+      const parts = [];
+      if (taluka) parts.push(taluka);
+      if (district && district !== taluka) parts.push(district);
+      if (state && state !== district && state !== taluka) parts.push(state);
+      return parts.join(", ") || "Unknown Location";
+    }
+    return data.display_name || "Unknown";
+  } catch (err) {
+    console.error("Error fetching address:", err);
+    return "Unknown";
+  }
+};
+
+// Helper: send emails after ride acceptance
+const sendAcceptanceEmails = async (ride) => {
+  try {
+    const customer = await User.findById(ride.customer_id);
+    const driver = await User.findById(ride.driverId);
+
+    if (!customer || !driver) {
+      console.error("[EMAIL] Customer or driver not found for ride:", ride._id);
+      return;
+    }
+
+    // Get readable addresses
+    const [srcLng, srcLat] = ride.source?.coordinates || [];
+    const [destLng, destLat] = ride.destination?.coordinates || [];
+
+    const sourceAddress = srcLat && srcLng ? await getAddress(srcLat, srcLng) : "N/A";
+    const destinationAddress = destLat && destLng ? await getAddress(destLat, destLng) : "N/A";
+
+    await sendRideAcceptedEmail({
+      customer,
+      driver,
+      ride,
+      sourceAddress,
+      destinationAddress,
+    });
+
+    console.log("[PAYMENT] ✅ Acceptance emails sent successfully");
+  } catch (err) {
+    // Don't let email failure break the payment flow
+    console.error("[PAYMENT] ❌ Failed to send acceptance emails:", err);
+  }
+};
 
 exports.createCheckoutSession = async (req, res) => {
   const { reservationId } = req.body;
@@ -97,6 +160,9 @@ exports.stripeWebhook = async (req, res) => {
 
       console.log("Ride successfully accepted after payment");
 
+      // 📧 Send emails to both customer and driver
+      await sendAcceptanceEmails(ride);
+
     } catch (err) {
       console.error("Webhook processing error:", err);
       return res.status(500).json({ error: "Webhook processing failed" });
@@ -130,6 +196,10 @@ exports.verifySession = async (req, res) => {
         await ride.save();
 
         await RideReservation.deleteOne({ _id: reservation._id });
+
+        // 📧 Send emails to both customer and driver
+        await sendAcceptanceEmails(ride);
+
         return res.json({ success: true, message: "Payment verified and ride accepted." });
       }
       return res.json({ success: true, message: "Ride already accepted." });

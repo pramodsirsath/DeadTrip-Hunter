@@ -112,7 +112,7 @@ export default function AcceptedLoads({ loads, onViewMap, onStartRide, onEndRide
                   {ride.status === 'in_progress' ? 'In Progress' : 'Accepted'}
                 </span>
                 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="flex-wrap" style={{ display: 'flex', gap: '8px' }}>
                   <button
                     onClick={() => onViewMap(ride._id)}
                     className="btn btn-outline"

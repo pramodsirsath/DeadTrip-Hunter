@@ -409,6 +409,7 @@ textarea.input {
 
 .table {
   width: 100%;
+  min-width: 800px; /* Forces scrolling on mobile to prevent overlapping */
   border-collapse: collapse;
   font-size: 0.875rem;
 }
@@ -619,6 +620,8 @@ textarea.input {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   animation: scaleIn 0.3s ease-out;
+  max-height: 85vh; /* Responsive constraint */
+  overflow-y: auto; /* Scroll if content is too long */
 }
 
 /* ===== SECTION HEADERS ===== */
@@ -638,6 +641,19 @@ textarea.input {
   background: linear-gradient(to right, var(--border-medium), transparent);
 }
 
+/* ===== UTILITY CLASSES ===== */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flex-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 /* ===== RESPONSIVE BREAKPOINTS ===== */
 @media (max-width: 768px) {
   .hide-mobile {
@@ -647,12 +663,75 @@ textarea.input {
   body {
     font-size: 14px;
   }
+  
+  /* Make all flex container act as columns on small devices if marked */
+  .stack-mobile {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* Reduce paddings */
+  .glass-card, .modal-content {
+    padding: 16px !important;
+  }
+
+  /* Forms should take full width */
+  input, select, textarea {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Force buttons to take full width when stacked */
+  .stack-mobile > .btn {
+    width: 100% !important;
+    justify-content: center;
+  }
 }
 
 @media (min-width: 769px) {
   .hide-desktop {
     display: none !important;
   }
+}
+
+/* ===== GOOGLE PLACES AUTOCOMPLETE ===== */
+/* Force Google's autocomplete dropdown above modals (which use z-index: 9999) */
+.pac-container {
+  z-index: 100000 !important;
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border-medium) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-lg) !important;
+  font-family: 'Inter', sans-serif !important;
+  margin-top: 4px !important;
+}
+
+.pac-item {
+  padding: 8px 14px !important;
+  cursor: pointer !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+
+.pac-item:hover {
+  background-color: var(--bg-card-hover) !important;
+}
+
+.pac-item-query {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+}
+
+.pac-matched {
+  color: var(--accent-blue) !important;
+  font-weight: 700 !important;
+}
+
+.pac-icon {
+  display: none !important;
 }
 
 /* ===== LEAFLET MAP OVERRIDES ===== */

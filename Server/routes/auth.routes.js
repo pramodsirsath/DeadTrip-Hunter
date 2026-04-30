@@ -7,14 +7,15 @@ const { isAuthenticated } = require('../middlewares/auth.middleware');
 const { saveFCMToken } = require('../controllers/userController');
 const multer = require('multer');
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/')
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('../config/cloudinary');
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'deadtrip_hunter', // The folder name in your Cloudinary account
+    allowed_formats: ['jpg', 'jpeg', 'png', 'pdf'], // Allow these formats
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-    cb(null, uniqueSuffix + '-' + file.originalname)
-  }
 });
 const upload = multer({ storage: storage });
 

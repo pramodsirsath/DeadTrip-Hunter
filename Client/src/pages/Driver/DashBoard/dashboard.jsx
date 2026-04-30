@@ -206,7 +206,7 @@ export default function DriverDashboard() {
       toast("Ride started successfully!", "success");
       
       if (data.otp) {
-        alert(`TESTING ONLY: The completion OTP is ${data.otp}. Usually, this is sent to the customer.`);
+        alert(`Ride has been started successfully`);
       }
       
       fetchAccepted(user._id);

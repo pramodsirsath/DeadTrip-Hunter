@@ -1,63 +1,71 @@
-import React, { useState } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import "leaflet-geosearch/dist/geosearch.css";
-import { GeoSearchControl, OpenStreetMapProvider } from "leaflet-geosearch";
-import L from "leaflet";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from "@react-google-maps/api";
 import { jwtDecode } from "jwt-decode";
-import { MapPin, Calendar, Truck, Weight, IndianRupee, FileText, ArrowRight, X, CheckCircle } from "lucide-react";
+import { MapPin, Calendar, Truck, Weight, IndianRupee, FileText, ArrowRight, X, CheckCircle, Search } from "lucide-react";
 import PageTransition from "../../../components/PageTransition/PageTransition";
 import GlassCard from "../../../components/GlassCard/GlassCard";
 import { useToast } from "../../../components/Toast/Toast";
 
-// Custom marker
-const markerIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-});
+const libraries = ['places'];
 
-// Component to handle clicks on map
-function LocationPicker({ setCoords }) {
-  useMapEvents({
-    click(e) {
-      setCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
-    },
-  });
-  return null;
-}
+function PlaceSearchBox({ onPlaceSelected }) {
+  const [autocomplete, setAutocomplete] = useState(null);
 
-function SearchField() {
-  const map = useMap();
-  React.useEffect(() => {
-    const provider = new OpenStreetMapProvider();
-    const searchControl = new GeoSearchControl({
-      provider: provider,
-      style: 'bar',
-      showMarker: false,
-      autoClose: true,
-      retainZoomLevel: false,
-      animateZoom: true,
-      keepResult: true,
-      searchLabel: 'Search for address...'
-    });
-    map.addControl(searchControl);
+  const onLoad = (ac) => {
+    setAutocomplete(ac);
+  };
 
-    const handleResult = (e) => {
-      map.flyTo([e.location.y, e.location.x], 15);
-    };
-    
-    map.on('geosearch/showlocation', handleResult);
+  const onPlaceChanged = () => {
+    if (autocomplete) {
+      const place = autocomplete.getPlace();
+      if (place.geometry && place.geometry.location) {
+        onPlaceSelected({
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+        });
+      }
+    }
+  };
 
-    return () => {
-      map.off('geosearch/showlocation', handleResult);
-      map.removeControl(searchControl);
-    };
-  }, [map]);
-  return null;
+  return (
+    <Autocomplete
+      onLoad={onLoad}
+      onPlaceChanged={onPlaceChanged}
+      options={{ componentRestrictions: { country: "in" } }}
+    >
+      <div style={{ position: 'relative', width: '300px' }}>
+        <Search size={16} style={{
+          position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
+          color: '#999', pointerEvents: 'none', zIndex: 1
+        }} />
+        <input
+          placeholder="Search for address..."
+          style={{
+            boxSizing: 'border-box',
+            border: '1px solid transparent',
+            width: '100%',
+            height: '40px',
+            padding: '0 12px 0 32px',
+            borderRadius: 'var(--radius-sm)',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
+            fontSize: '14px',
+            outline: 'none',
+            background: 'white',
+            color: 'black'
+          }}
+        />
+      </div>
+    </Autocomplete>
+  );
 }
 
 export default function PostLoad() {
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries,
+  });
+
   const toast = useToast();
   const [form, setForm] = useState({
     source: { lat: "", lng: "" },
@@ -71,6 +79,41 @@ export default function PostLoad() {
 
   const [selecting, setSelecting] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [mapCenter, setMapCenter] = useState({ lat: 20.5937, lng: 78.9629 });
+  const [mapZoom, setMapZoom] = useState(5);
+  
+  const mapRef = useRef(null);
+
+  const onLoadMap = useCallback((map) => {
+    mapRef.current = map;
+  }, []);
+
+  const onUnmount = useCallback((map) => {
+    mapRef.current = null;
+  }, []);
+
+  const onPlaceChanged = useCallback((location) => {
+    if (selecting) {
+      setForm((prev) => ({
+        ...prev,
+        [selecting]: location
+      }));
+      // Update center and zoom via state so it persists across re-renders
+      setMapCenter(location);
+      setMapZoom(15);
+    }
+  }, [selecting]);
+
+  const onMapClick = (e) => {
+    if (selecting) {
+      const clickedLocation = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+      setForm((prev) => ({
+        ...prev,
+        [selecting]: clickedLocation
+      }));
+      setMapCenter(clickedLocation);
+    }
+  };
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -159,16 +202,15 @@ export default function PostLoad() {
             gap: '16px',
           }}>
             {/* Source & Destination Selection */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
+            <div className="flex-wrap stack-mobile" style={{
+              display: 'flex',
               gap: '12px',
             }}>
               <button
                 type="button"
                 className={form.source.lat ? 'btn btn-success' : 'btn btn-ghost'}
                 onClick={() => setSelecting("source")}
-                style={{ padding: '14px', justifyContent: 'flex-start', width: '100%' }}
+                style={{ flex: 1, padding: '14px', justifyContent: 'flex-start' }}
               >
                 <MapPin size={18} />
                 {form.source.lat ? 'Source Set ✓' : 'Select Source'}
@@ -178,7 +220,7 @@ export default function PostLoad() {
                 type="button"
                 className={form.destination.lat ? 'btn btn-success' : 'btn btn-ghost'}
                 onClick={() => setSelecting("destination")}
-                style={{ padding: '14px', justifyContent: 'flex-start', width: '100%' }}
+                style={{ flex: 1, padding: '14px', justifyContent: 'flex-start' }}
               >
                 <MapPin size={18} />
                 {form.destination.lat ? 'Dest. Set ✓' : 'Select Destination'}
@@ -348,32 +390,30 @@ export default function PostLoad() {
                 </button>
               </div>
 
-              <div style={{ flex: 1, borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                <MapContainer
-                  center={[20.5937, 78.9629]}
-                  zoom={5}
-                  style={{ height: "100%", width: "100%" }}
-                >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>'
-                  />
-                  <SearchField />
-                  <LocationPicker
-                    setCoords={(coords) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        [selecting]: coords,
-                      }))
-                    }
-                  />
-                  {form[selecting].lat && (
-                    <Marker
-                      position={[form[selecting].lat, form[selecting].lng]}
-                      icon={markerIcon}
-                    />
-                  )}
-                </MapContainer>
+              <div style={{ flex: 1, borderRadius: 'var(--radius-md)', overflow: 'hidden', position: 'relative' }}>
+                {isLoaded ? (
+                  <GoogleMap
+                    mapContainerStyle={{ height: '100%', width: '100%' }}
+                    center={mapCenter}
+                    zoom={mapZoom}
+                    onLoad={onLoadMap}
+                    onUnmount={onUnmount}
+                    onClick={onMapClick}
+                    options={{ streetViewControl: false, mapTypeControl: false }}
+                  >
+                    <div style={{ position: 'absolute', top: 10, left: 10, right: 10, zIndex: 1, display: 'flex', justifyContent: 'center' }}>
+                      <PlaceSearchBox onPlaceSelected={onPlaceChanged} />
+                    </div>
+
+                    {form[selecting]?.lat && (
+                      <Marker position={{ lat: Number(form[selecting].lat), lng: Number(form[selecting].lng) }} />
+                    )}
+                  </GoogleMap>
+                ) : (
+                  <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                    <p>Loading map...</p>
+                  </div>
+                )}
               </div>
 
               <div style={{

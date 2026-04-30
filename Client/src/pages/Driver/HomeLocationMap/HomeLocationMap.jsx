@@ -1,67 +1,93 @@
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
-import { useState, useEffect } from "react";
+import { GoogleMap, Marker, Autocomplete, useJsApiLoader } from "@react-google-maps/api";
+import { useState, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import "leaflet/dist/leaflet.css";
-import "leaflet-geosearch/dist/geosearch.css";
-import { GeoSearchControl, OpenStreetMapProvider } from "leaflet-geosearch";
-import L from "leaflet";
-import { MapPin, Home, X, CheckCircle } from 'lucide-react';
+import { Home, X, CheckCircle, Search } from 'lucide-react';
 
-// Fix marker icons
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png"
-});
+const libraries = ['places'];
 
-function LocationPicker({ onPick }) {
-  useMapEvents({
-    click(e) {
-      onPick(e.latlng);
-    }
-  });
-  return null;
-}
+function PlaceSearchBox({ onPlaceSelected }) {
+  const [autocomplete, setAutocomplete] = useState(null);
 
-function SearchField({ onPick }) {
-  const map = useMap();
-  useEffect(() => {
-    const provider = new OpenStreetMapProvider();
-    const searchControl = new GeoSearchControl({
-      provider: provider,
-      style: 'bar',
-      showMarker: false,
-      autoClose: true,
-      retainZoomLevel: false,
-      animateZoom: true,
-      keepResult: true,
-      searchLabel: 'Search for location...'
-    });
-    map.addControl(searchControl);
+  const onLoad = (ac) => {
+    setAutocomplete(ac);
+  };
 
-    const handleResult = (e) => {
-      if (onPick) {
-        onPick({ lat: e.location.y, lng: e.location.x });
+  const onPlaceChanged = () => {
+    if (autocomplete) {
+      const place = autocomplete.getPlace();
+      if (place.geometry && place.geometry.location) {
+        onPlaceSelected({
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+        });
       }
-      map.flyTo([e.location.y, e.location.x], 15);
-    };
-    
-    map.on('geosearch/showlocation', handleResult);
+    }
+  };
 
-    return () => {
-      map.off('geosearch/showlocation', handleResult);
-      map.removeControl(searchControl);
-    };
-  }, [map, onPick]);
-  return null;
+  return (
+    <Autocomplete
+      onLoad={onLoad}
+      onPlaceChanged={onPlaceChanged}
+      options={{ componentRestrictions: { country: "in" } }}
+    >
+      <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+        <Search size={16} style={{
+          position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)',
+          color: '#999', pointerEvents: 'none', zIndex: 1
+        }} />
+        <input
+          placeholder="Search for location..."
+          style={{
+            boxSizing: 'border-box',
+            border: '1px solid var(--border-subtle)',
+            width: '100%',
+            height: '40px',
+            padding: '0 12px 0 32px',
+            borderRadius: 'var(--radius-sm)',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
+            fontSize: '14px',
+            outline: 'none',
+            background: 'var(--bg-primary)',
+            color: 'var(--text-primary)'
+          }}
+        />
+      </div>
+    </Autocomplete>
+  );
 }
 
 export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries,
+  });
+
   const [homeLocation, setHomeLocation] = useState(null);
+  const [mapCenter, setMapCenter] = useState({ lat: 20.5937, lng: 78.9629 });
+  const [mapZoom, setMapZoom] = useState(5);
+  const mapRef = useRef(null);
+
+  const onLoadMap = useCallback((map) => {
+    mapRef.current = map;
+  }, []);
+
+  const onUnmount = useCallback(() => {
+    mapRef.current = null;
+  }, []);
+
+  const onPlaceSelected = useCallback((location) => {
+    setHomeLocation(location);
+    // Update center and zoom via state so it persists across re-renders
+    setMapCenter(location);
+    setMapZoom(15);
+  }, []);
+
+  const onMapClick = (e) => {
+    const clickedLocation = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+    setHomeLocation(clickedLocation);
+    setMapCenter(clickedLocation);
+  };
 
   return createPortal(
     <div className="modal-overlay" onClick={() => !loading && onCancel()}>
@@ -78,7 +104,7 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '16px',
+          marginBottom: '12px',
         }}>
           <h2 style={{
             fontWeight: '700',
@@ -100,6 +126,13 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
           </button>
         </div>
 
+        {/* Search Box — OUTSIDE GoogleMap so suggestions render properly in portal */}
+        {isLoaded && (
+          <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
+            <PlaceSearchBox onPlaceSelected={onPlaceSelected} />
+          </div>
+        )}
+
         {/* MAP CONTAINER */}
         <div style={{
           flex: 1,
@@ -107,20 +140,25 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
           overflow: 'hidden',
           position: 'relative',
         }}>
-          <MapContainer
-            center={[20.5937, 78.9629]}
-            zoom={5}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            
-            <SearchField onPick={setHomeLocation} />
-            <LocationPicker onPick={setHomeLocation} />
-
-            {homeLocation && (
-              <Marker position={[homeLocation.lat, homeLocation.lng]} />
-            )}
-          </MapContainer>
+          {isLoaded ? (
+            <GoogleMap
+              mapContainerStyle={{ height: '100%', width: '100%' }}
+              center={mapCenter}
+              zoom={mapZoom}
+              onLoad={onLoadMap}
+              onUnmount={onUnmount}
+              onClick={onMapClick}
+              options={{ streetViewControl: false, mapTypeControl: false }}
+            >
+              {homeLocation && (
+                <Marker position={homeLocation} />
+              )}
+            </GoogleMap>
+          ) : (
+            <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              <p>Loading map...</p>
+            </div>
+          )}
 
           {/* Loading Overlay */}
           {loading && (

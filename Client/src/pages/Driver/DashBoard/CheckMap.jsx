@@ -1,54 +1,82 @@
-import { MapContainer, TileLayer, GeoJSON, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
+import { GoogleMap, Marker, Polyline, Polygon, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
+import { useState } from "react";
+
+const libraries = ['places'];
 
 export default function CheckMap({ data }) {
-    if (!data || !data.currentLocation || !data.homeLocation || !data.route || !data.corridor) {
-        console.log(data);
-    return <p>Loading map...</p>;
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    libraries,
+  });
+
+  const [activeMarker, setActiveMarker] = useState(null);
+
+  if (!data || !data.currentLocation || !data.homeLocation || !data.route || !data.corridor) {
+    console.log(data);
+    return <p>Loading map data...</p>;
   }
 
-  const current = data.currentLocation.coordinates;
-  const home = data.homeLocation.coordinates;
+  const current = { lat: data.currentLocation.coordinates[1], lng: data.currentLocation.coordinates[0] };
+  const home = { lat: data.homeLocation.coordinates[1], lng: data.homeLocation.coordinates[0] };
+  
+  let routePath = [];
+  if (data.route.coordinates) {
+    routePath = data.route.coordinates.map(coord => ({ lat: coord[1], lng: coord[0] }));
+  }
+
+  let corridorPath = [];
+  if (data.corridor.coordinates && data.corridor.coordinates[0]) {
+    corridorPath = data.corridor.coordinates[0].map(coord => ({ lat: coord[1], lng: coord[0] }));
+  }
+
+  if (!isLoaded) return <p>Loading map...</p>;
 
   return (
-    <MapContainer
-      center={[current[1], current[0]]}
+    <GoogleMap
+      center={current}
       zoom={9}
-      style={{ height: "600px", width: "100%" }}
+      mapContainerStyle={{ height: "600px", width: "100%" }}
     >
-      <TileLayer
-        attribution="© OpenStreetMap"
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-
       {/* Corridor Polygon */}
-      <GeoJSON
-        data={data.corridor}
-        style={{
-          color: "red",
-          weight: 2,
-          fillOpacity: 0.15
-        }}
-      />
+      {corridorPath.length > 0 && (
+        <Polygon
+          paths={corridorPath}
+          options={{
+            strokeColor: "red",
+            strokeWeight: 2,
+            fillColor: "red",
+            fillOpacity: 0.15
+          }}
+        />
+      )}
 
       {/* Route Line */}
-      <GeoJSON
-        data={data.route}
-        style={{
-          color: "blue",
-          weight: 4
-        }}
-      />
+      {routePath.length > 0 && (
+        <Polyline
+          path={routePath}
+          options={{
+            strokeColor: "blue",
+            strokeWeight: 4
+          }}
+        />
+      )}
 
       {/* Current Location */}
-      <Marker position={[current[1], current[0]]}>
-        <Popup>Driver Current Location</Popup>
-      </Marker>
+      <Marker position={current} onClick={() => setActiveMarker("current")} />
+      {activeMarker === "current" && (
+        <InfoWindow position={current} onCloseClick={() => setActiveMarker(null)}>
+          <div>Driver Current Location</div>
+        </InfoWindow>
+      )}
 
       {/* Home Location */}
-      <Marker position={[home[1], home[0]]}>
-        <Popup>Driver Home</Popup>
-      </Marker>
-    </MapContainer>
+      <Marker position={home} onClick={() => setActiveMarker("home")} />
+      {activeMarker === "home" && (
+        <InfoWindow position={home} onCloseClick={() => setActiveMarker(null)}>
+          <div>Driver Home</div>
+        </InfoWindow>
+      )}
+    </GoogleMap>
   );
 }

@@ -1,14 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, Truck, User, LogOut, LayoutDashboard, Package } from 'lucide-react';
+import { Menu, X, Truck, User, LogOut, LogIn, UserPlus, LayoutDashboard, Package } from 'lucide-react';
+import { jwtDecode } from 'jwt-decode';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
-  const role = localStorage.getItem('role');
-  const isLoggedIn = !!token;
+  // Validate JWT token — clear stale auth if expired/invalid
+  const { isLoggedIn, role } = useMemo(() => {
+    const token = localStorage.getItem('token');
+    const storedRole = localStorage.getItem('role');
+
+    if (!token) return { isLoggedIn: false, role: null };
+
+    try {
+      const decoded = jwtDecode(token);
+      // Check if token has expired
+      if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+        // Token expired — clear stale data
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        return { isLoggedIn: false, role: null };
+      }
+      return { isLoggedIn: true, role: storedRole || decoded.role || null };
+    } catch (e) {
+      // Invalid token — clear stale data
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      return { isLoggedIn: false, role: null };
+    }
+  }, [location.pathname]); // Re-check when route changes
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -17,20 +39,32 @@ export default function Navbar() {
     setIsOpen(false);
   };
 
+  const safeRole = role ? role.toLowerCase() : null;
+
+  let authLinks = [];
+  if (safeRole === 'driver') {
+    authLinks = [
+      { to: '/driver/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+      { to: '/driver/profile', label: 'Profile', icon: <User size={18} /> },
+    ];
+  } else if (safeRole === 'admin') {
+    authLinks = [
+      { to: '/admin/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+    ];
+  } else {
+    // Default to customer
+    authLinks = [
+      { to: '/customer/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+      { to: '/post-ride', label: 'Post Ride', icon: <Package size={18} /> },
+      { to: '/customer/profile', label: 'Profile', icon: <User size={18} /> },
+    ];
+  }
+
   const navLinks = isLoggedIn
-    ? role === 'driver'
-      ? [
-          { to: '/driver/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-          { to: '/driver/profile', label: 'Profile', icon: <User size={18} /> },
-        ]
-      : [
-          { to: '/customer/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-          { to: '/post-ride', label: 'Post Ride', icon: <Package size={18} /> },
-          { to: '/customer/profile', label: 'Profile', icon: <User size={18} /> },
-        ]
+    ? authLinks
     : [
-        { to: '/login', label: 'Login', icon: null },
-        { to: '/signup', label: 'Sign Up', icon: null },
+        { to: '/login', label: 'Login', icon: <LogIn size={18} /> },
+        { to: '/signup', label: 'Sign Up', icon: <UserPlus size={18} /> },
       ];
 
   const isActive = (path) => location.pathname === path;
@@ -52,7 +86,7 @@ export default function Navbar() {
         justifyContent: 'space-between',
       }}>
         {/* Logo */}
-        <Link to={isLoggedIn ? (role === 'driver' ? '/driver/dashboard' : '/customer/dashboard') : '/'} style={{
+        <Link to={isLoggedIn ? (safeRole === 'driver' ? '/driver/dashboard' : safeRole === 'admin' ? '/admin/dashboard' : '/customer/dashboard') : '/'} style={{
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
