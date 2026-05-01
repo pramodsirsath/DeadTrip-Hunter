@@ -77,6 +77,7 @@ const fare = ride.fare >= 50 ? ride.fare :200;
     return res.status(400).json({ message: "Reservation not found" });
   }
 
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "payment",
@@ -92,8 +93,8 @@ const fare = ride.fare >= 50 ? ride.fare :200;
         quantity: 1
       }
     ],
-   success_url: `http://localhost:5173/customer/dashboard?payment=success&reservationId=${reservation._id}`,
-cancel_url: "http://localhost:5173/customer/dashboard?payment=failed"
+   success_url: `${frontendUrl}/customer/dashboard?payment=success&reservationId=${reservation._id}`,
+   cancel_url: `${frontendUrl}/customer/dashboard?payment=failed`
   });
 
   reservation.paymentSessionId = session.id;

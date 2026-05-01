@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { getReadableAddress } from "../../../utils/getReadableAddress";
 import { Clock, MapPin, ArrowRight } from 'lucide-react';
 
-const API = "http://localhost:3000";
+const API = import.meta.env.VITE_BACKEND_URL;
 
 export default function DriverReservationBanner({ onRefresh }) {
 

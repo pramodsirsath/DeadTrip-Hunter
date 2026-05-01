@@ -18,7 +18,7 @@ export default function ReturnModeToggle({ isReturnMode, setIsReturnMode }) {
 
       const current = await getCurrentLocation();
 
-      await fetch("http://localhost:3000/return/rides/start", {
+      await fetch(`${import.meta.env.VITE_BACKEND_URL}/return/rides/start`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -44,7 +44,7 @@ export default function ReturnModeToggle({ isReturnMode, setIsReturnMode }) {
 
   const disableReturnMode = async () => {
     setIsReturnMode(false);
-    await fetch("http://localhost:3000/return/rides/end", {
+    await fetch(`${import.meta.env.VITE_BACKEND_URL}/return/rides/end`, {
       method: "DELETE",
       credentials: "include"
     });

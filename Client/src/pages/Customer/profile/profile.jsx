@@ -10,7 +10,7 @@ export default function CustomerProfile() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://localhost:3000/auth/me", {
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/me`, {
       method: "GET",
       credentials: "include",
     })

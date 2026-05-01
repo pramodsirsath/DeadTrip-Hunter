@@ -24,7 +24,7 @@ export default function CustomerDashboard() {
 
     if (status === "success") {
       if (reservationId) {
-        fetch(`http://localhost:3000/api/payment/verify-session`, {
+        fetch(`${import.meta.env.VITE_BACKEND_URL}/api/payment/verify-session`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ reservationId })
@@ -67,7 +67,7 @@ export default function CustomerDashboard() {
   const fetchPendingPayments = async () => {
     try {
       const res = await fetch(
-        `http://localhost:3000/api/reservation/customer-pending/${userId}`, {
+        `${import.meta.env.VITE_BACKEND_URL}/api/reservation/customer-pending/${userId}`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -100,7 +100,7 @@ export default function CustomerDashboard() {
 
   const handlePayment = async (reservationId) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/payment/create-session`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/payment/create-session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reservationId })
@@ -120,7 +120,7 @@ export default function CustomerDashboard() {
 
   const handleCancel = async (rideId) => {
     try {
-      const res = await fetch(`http://localhost:3000/rides/${rideId}/cancel`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rides/${rideId}/cancel`, {
         method: 'PATCH',
       });
       const data = await res.json();
@@ -146,7 +146,7 @@ export default function CustomerDashboard() {
   const getAddress = async (lat, lng) => {
     try {
       const res = await fetch(
-        `http://localhost:3000/rides/api/reverse-geocode?lat=${lat}&lon=${lng}`
+        `${import.meta.env.VITE_BACKEND_URL}/rides/api/reverse-geocode?lat=${lat}&lon=${lng}`
       );
       const data = await res.json();
       return (
@@ -165,7 +165,7 @@ export default function CustomerDashboard() {
   React.useEffect(() => {
     const fetchRides = async () => {
       try {
-        const res = await fetch(`http://localhost:3000/rides/user/${userId}`);
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rides/user/${userId}`);
         const data = await res.json();
         setRides(data);
 

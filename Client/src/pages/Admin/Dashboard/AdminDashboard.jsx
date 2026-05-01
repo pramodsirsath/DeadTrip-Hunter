@@ -16,7 +16,7 @@ export default function AdminDashboard() {
   const fetchDrivers = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3000/admin/pending-drivers", {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/admin/pending-drivers`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -30,7 +30,7 @@ export default function AdminDashboard() {
   const fetchWithdrawals = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3000/admin/pending-withdrawals", {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/admin/pending-withdrawals`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
   const handleDriverAction = async (id, action) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3000/admin/approve-driver/${id}`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/admin/approve-driver/${id}`, {
         method: "PATCH",
         headers: { 
           "Content-Type": "application/json",
@@ -79,7 +79,7 @@ export default function AdminDashboard() {
   const handleWithdrawalAction = async (id, action) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:3000/admin/approve-withdrawal/${id}`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/admin/approve-withdrawal/${id}`, {
         method: "PATCH",
         headers: { 
           "Content-Type": "application/json",
@@ -98,7 +98,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const getDocUrl = (filename) => filename ? `http://localhost:3000/uploads/${filename}` : null;
+  const getDocUrl = (filename) => filename ? `${import.meta.env.VITE_BACKEND_URL}/uploads/${filename}` : null;
 
   return (
     <PageTransition>

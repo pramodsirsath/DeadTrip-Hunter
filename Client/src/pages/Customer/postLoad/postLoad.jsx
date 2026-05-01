@@ -135,7 +135,7 @@ export default function PostLoad() {
 
       const payload = { ...form, customer_id: userId };
 
-      const res = await fetch("http://localhost:3000/rides/create", {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rides/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

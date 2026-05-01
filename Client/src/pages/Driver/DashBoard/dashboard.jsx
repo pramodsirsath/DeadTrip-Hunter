@@ -57,7 +57,7 @@ export default function DriverDashboard() {
   };
 
   useEffect(() => {
-    fetch("http://localhost:3000/auth/me", {
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/auth/me`, {
       credentials: "include"
     })
       .then(res => res.json())
@@ -68,7 +68,7 @@ export default function DriverDashboard() {
   const fetchPending = async () => {
     const position = await getCurrentLocation();
 
-    const res = await fetch("http://localhost:3000/rides/filter-pending", {
+    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rides/filter-pending`, {
       method: "POST",
       credentials: "include",
       headers: {
@@ -87,14 +87,14 @@ export default function DriverDashboard() {
 
   const fetchReturnRides = async () => {
     const allRidesRes = await fetch(
-      "http://localhost:3000/rides/pending",
+      `${import.meta.env.VITE_BACKEND_URL}/rides/pending`,
       { credentials: "include" }
     );
 
     const allRides = await allRidesRes.json();
 
     const filterRes = await fetch(
-      "http://localhost:3000/return/rides/return-rides",
+      `${import.meta.env.VITE_BACKEND_URL}/return/rides/return-rides`,
       {
         method: "POST",
         credentials: "include",
@@ -110,7 +110,7 @@ export default function DriverDashboard() {
 
   const fetchAccepted = async (driverId) => {
     const res = await fetch(
-      `http://localhost:3000/rides/accepted/${driverId}`,
+      `${import.meta.env.VITE_BACKEND_URL}/rides/accepted/${driverId}`,
       { credentials: "include" }
     );
     const data = await res.json();
@@ -120,7 +120,7 @@ export default function DriverDashboard() {
 
   const fetchHistoricalRides = async (driverId) => {
     try {
-      const res = await fetch(`http://localhost:3000/rides/user/${driverId}`);
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rides/user/${driverId}`);
       const data = await res.json();
       const cancelledOnly = data.filter(r => r.status === 'cancelled');
       const enriched = await enrichRidesWithAddress(cancelledOnly);
@@ -132,7 +132,7 @@ export default function DriverDashboard() {
 
   const fetchWithdrawals = async (driverId) => {
     try {
-      const res = await fetch(`http://localhost:3000/api/payment/withdrawals/${driverId}`);
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/payment/withdrawals/${driverId}`);
       if (res.ok) {
         const data = await res.json();
         setWithdrawals(data);
@@ -166,7 +166,7 @@ export default function DriverDashboard() {
       }
 
       const res = await fetch(
-        `http://localhost:3000/rides/${rideId}/accept`,
+        `${import.meta.env.VITE_BACKEND_URL}/rides/${rideId}/accept`,
         {
           method: "PATCH",
           credentials: "include",
@@ -194,7 +194,7 @@ export default function DriverDashboard() {
 
   const handleStartRide = async (rideId) => {
     try {
-      const res = await fetch(`http://localhost:3000/rides/${rideId}/start`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rides/${rideId}/start`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -217,7 +217,7 @@ export default function DriverDashboard() {
 
   const handleEndRide = async (rideId, otp, location) => {
     try {
-      const res = await fetch(`http://localhost:3000/rides/${rideId}/complete`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rides/${rideId}/complete`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -234,7 +234,7 @@ export default function DriverDashboard() {
 
   const handleDriverCancel = async (rideId) => {
     try {
-      const res = await fetch(`http://localhost:3000/rides/${rideId}/driver-cancel`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/rides/${rideId}/driver-cancel`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -266,7 +266,7 @@ export default function DriverDashboard() {
 
     setClaiming(true);
     try {
-      const res = await fetch("http://localhost:3000/api/payment/withdraw", {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/payment/withdraw`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

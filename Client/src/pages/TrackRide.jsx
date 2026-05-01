@@ -6,7 +6,7 @@ import io from "socket.io-client";
 import { ArrowLeft, Navigation, MapPin, Compass, ExternalLink } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner/LoadingSpinner';
 
-const socket = io("http://localhost:3000");
+const socket = io(import.meta.env.VITE_BACKEND_URL);
 
 const libraries = ['places'];
 const mapContainerStyle = { width: "100%", height: "100%" };
@@ -53,7 +53,7 @@ export default function TrackRide() {
   useEffect(() => {
     if (!rideId) return;
 
-    fetch(`http://localhost:3000/rides/${rideId}`)
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/rides/${rideId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.source && data.destination) {

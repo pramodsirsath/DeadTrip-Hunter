@@ -9,7 +9,7 @@ export default function ReturnLoads({ loads, onAccept }) {
     useEffect(() => {
       const fetchData = async () => {
         try{
-          const res = await fetch("http://localhost:3000/return/rides/status", {
+          const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/return/rides/status`, {
             method: "GET",
             credentials: "include"
 

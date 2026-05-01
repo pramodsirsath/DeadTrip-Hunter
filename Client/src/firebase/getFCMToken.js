@@ -12,7 +12,7 @@ export const generateFCMToken = async () => {
 
   // send token to backend
 await axios.post(
-  "http://localhost:3000/auth/save-fcm-token",
+  `${import.meta.env.VITE_BACKEND_URL}/auth/save-fcm-token`,
   { token: token },
   { withCredentials: true }
 );
