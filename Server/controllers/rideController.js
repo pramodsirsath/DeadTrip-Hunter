@@ -2,6 +2,7 @@ const Ride = require('../models/ride');
 const User = require('../models/user');
 const RideReservation = require("../models/RideReservation");
 const { sendCancellationEmail } = require('../services/email.service');
+const axios = require('axios');
 
 // ✅ Create Ride (customer posts a load)
 const sendNotification = require("../utils/sendNotification");
@@ -9,7 +10,7 @@ const sendNotification = require("../utils/sendNotification");
 // Helper: reverse geocode coordinates to address string
 const getAddressFromCoords = async (lat, lng) => {
   try {
-    const res = await fetch(
+    const res = await axios.get(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
       {
         headers: {
@@ -17,7 +18,7 @@ const getAddressFromCoords = async (lat, lng) => {
         }
       }
     );
-    const data = await res.json();
+    const data = res.data;
     if (data.address) {
       const taluka = data.address.village || data.address.town || data.address.suburb || data.address.city || data.address.county || "";
       const district = data.address.state_district || data.address.county || "";
@@ -565,7 +566,7 @@ module.exports.getRideById = async (req, res) => {
 module.exports.getAddressFromCoordinates = async (req, res) => {
   const { lat, lon } = req.query;
   try {
-    const response = await fetch(
+    const response = await axios.get(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
       {
         headers: {
@@ -573,7 +574,7 @@ module.exports.getAddressFromCoordinates = async (req, res) => {
         }
       }
     );
-    const data = await response.json();
+    const data = response.data;
     
     if (data.address) {
       // Prioritize village/town/suburb/county for 'Taluka'

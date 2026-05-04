@@ -15,9 +15,11 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const { stripeWebhook } = require("./controllers/paymentController");
 
 const app = express();
+const frontendUrl = (process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173").replace(/\/$/, "");
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173", // frontend URL
+    origin: frontendUrl,
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE"],
   })
@@ -74,7 +76,7 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: frontendUrl,
     methods: ["GET", "POST", "PATCH"],
   },
 });
