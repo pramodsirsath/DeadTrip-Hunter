@@ -19,7 +19,7 @@ app.use(
   cors({
     origin: process.env.FRONTEND_URL || "http://localhost:5173", // frontend URL
     credentials: true,
-    methods: ["GET", "POST", "PATCH","DELETE"],
+    methods: ["GET", "POST", "PATCH", "DELETE"],
   })
 );
 
