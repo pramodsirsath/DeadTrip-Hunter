@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const axios = require("axios");
 
 router.get("/reverse", async (req, res) => {
   try {
@@ -9,32 +10,18 @@ router.get("/reverse", async (req, res) => {
       return res.status(400).json({ address: "Unknown location" });
     }
 
-    const url =
-      `https://nominatim.openstreetmap.org/reverse` +
-      `?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${process.env.GOOGLE_MAP}`;
 
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "DeadTrip-Hunter/1.0"
-      }
-    });
+    const response = await axios.get(url);
+    const data = response.data;
 
-    if (!response.ok) {
-      throw new Error("Reverse geocoding failed");
+    if (data.results && data.results.length > 0) {
+      // Get the formatted address
+      const formatted = data.results[0].formatted_address;
+      res.json({ address: formatted });
+    } else {
+      res.json({ address: "Unknown location" });
     }
-
-    const data = await response.json();
-    const a = data.address || {};
-
-    const formatted = [
-      a.subdistrict || a.tehsil || a.village || a.town,
-      a.district || a.county,
-      a.state
-    ]
-      .filter(Boolean)
-      .join(", ");
-
-    res.json({ address: formatted || "Unknown location" });
   } catch (err) {
     console.error("Reverse geo error:", err.message);
     res.json({ address: "Unknown location" });
