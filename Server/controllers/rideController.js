@@ -7,6 +7,8 @@ const axios = require('axios');
 // ✅ Create Ride (customer posts a load)
 const sendNotification = require("../utils/sendNotification");
 
+const formatGoogleAddress = require("../utils/formatAddress");
+
 // Helper: reverse geocode coordinates to address string
 const getAddressFromCoords = async (lat, lng) => {
   try {
@@ -15,7 +17,7 @@ const getAddressFromCoords = async (lat, lng) => {
     );
     const data = res.data;
     if (data.results && data.results.length > 0) {
-      return data.results[0].formatted_address;
+      return formatGoogleAddress(data.results[0].address_components);
     }
     return "Unknown Location";
   } catch (err) {
@@ -560,7 +562,8 @@ module.exports.getAddressFromCoordinates = async (req, res) => {
     const data = response.data;
     
     if (data.results && data.results.length > 0) {
-      res.json({ display_name: data.results[0].formatted_address });
+      const formatted = formatGoogleAddress(data.results[0].address_components);
+      res.json({ display_name: formatted });
     } else {
       res.json({ display_name: "Unknown Location" });
     }

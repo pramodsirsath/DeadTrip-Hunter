@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const axios = require("axios");
+const formatGoogleAddress = require("../utils/formatAddress");
 
 router.get("/reverse", async (req, res) => {
   try {
@@ -17,7 +18,7 @@ router.get("/reverse", async (req, res) => {
 
     if (data.results && data.results.length > 0) {
       // Get the formatted address
-      const formatted = data.results[0].formatted_address;
+      const formatted = formatGoogleAddress(data.results[0].address_components);
       res.json({ address: formatted });
     } else {
       res.json({ address: "Unknown location" });
