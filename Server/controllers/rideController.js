@@ -11,28 +11,16 @@ const sendNotification = require("../utils/sendNotification");
 const getAddressFromCoords = async (lat, lng) => {
   try {
     const res = await axios.get(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-      {
-        headers: {
-          "User-Agent": "DeadtripHunter/1.0 (contact@deadtrip.com)"
-        }
-      }
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${process.env.GOOGLE_MAP}`
     );
     const data = res.data;
-    if (data.address) {
-      const taluka = data.address.village || data.address.town || data.address.suburb || data.address.city || data.address.county || "";
-      const district = data.address.state_district || data.address.county || "";
-      const state = data.address.state || "";
-      const parts = [];
-      if (taluka) parts.push(taluka);
-      if (district && district !== taluka) parts.push(district);
-      if (state && state !== district && state !== taluka) parts.push(state);
-      return parts.join(", ") || "Unknown Location";
+    if (data.results && data.results.length > 0) {
+      return data.results[0].formatted_address;
     }
-    return data.display_name || "Unknown";
+    return "Unknown Location";
   } catch (err) {
     console.error("Error fetching address:", err);
-    return "Unknown";
+    return "Unknown Location";
   }
 };
 
@@ -567,31 +555,15 @@ module.exports.getAddressFromCoordinates = async (req, res) => {
   const { lat, lon } = req.query;
   try {
     const response = await axios.get(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
-      {
-        headers: {
-          "User-Agent": "DeadtripHunter/1.0 (contact@deadtrip.com)"
-        }
-      }
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${process.env.GOOGLE_MAP}`
     );
     const data = response.data;
     
-    if (data.address) {
-      // Prioritize village/town/suburb/county for 'Taluka'
-      const taluka = data.address.village || data.address.town || data.address.suburb || data.address.city || data.address.county || "";
-      const district = data.address.state_district || data.address.county || "";
-      const state = data.address.state || "";
-
-      // Remove duplicates if taluka and district match
-      const parts = [];
-      if (taluka) parts.push(taluka);
-      if (district && district !== taluka) parts.push(district);
-      if (state && state !== district && state !== taluka) parts.push(state);
-
-      data.display_name = parts.join(", ") || "Unknown Location";
+    if (data.results && data.results.length > 0) {
+      res.json({ display_name: data.results[0].formatted_address });
+    } else {
+      res.json({ display_name: "Unknown Location" });
     }
-
-    res.json(data); // send response to frontend
   } catch (error) {
     console.error("Geocoding error:", error);
     res.status(500).json({ error: "Failed to fetch address" });

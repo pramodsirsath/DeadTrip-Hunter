@@ -94,11 +94,11 @@ module.exports.register=async function(req,res){
     })
 
   res.cookie("token", token, {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  maxAge: 2 * 24 * 60 * 60 * 1000,
-  sameSite: "Lax", // ← important for cross-origin requests
-});
+    httpOnly: true,
+    secure: true, // Must be true for cross-origin
+    maxAge: 2 * 24 * 60 * 60 * 1000,
+    sameSite: "none", // Must be "none" for cross-origin requests (Netlify to Render)
+  });
 
     return res.status(201).json({
         message:"User registered successfully",
@@ -146,12 +146,12 @@ module.exports.login=async function(req,res){
         expiresIn:"2d",
     })
 
-    res.cookie("token",token,{
-        httpOnly:true,
-        secure:process.env.NODE_ENV === "production",
+    res.cookie("token", token, {
+        httpOnly: true,
+        secure: true, // Must be true for cross-origin
         maxAge: 2 * 24 * 60 * 60 * 1000, // 2 days
-        
-    })
+        sameSite: "none", // Must be "none" for cross-origin requests
+    });
     return res.status(200).json({
         message : "User logged in successfully",
         token: token,
