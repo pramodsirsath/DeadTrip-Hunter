@@ -1,15 +1,25 @@
-require('dotenv').config();
+require("dotenv").config();
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false, // true for 465, false for 587 (uses STARTTLS)
+    requireTLS: true,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     }
 });
+
+transporter.verify((error, success) => {
+    if (error) {
+        console.log("SMTP ERROR:", error);
+    } else {
+        console.log("SMTP server ready");
+    }
+});
+
 
 async function sendCustomerEmail(customerEmail, customerName, driver, load) {
     console.log("Sending email to:", customerEmail);
