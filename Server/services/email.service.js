@@ -41,8 +41,10 @@ async function sendCustomerEmail(customerEmail, customerName, driver, load) {
     try {
         const info = await transporter.sendMail(mailOptions);
         console.log("Email sent:", info.messageId);
+        return { success: true };
     } catch (err) {
         console.error("Error sending email:", err);
+        throw err;
     }
 }
 
@@ -65,8 +67,10 @@ async function sendOtpEmail(email, otp) {
     try {
         const info = await transporter.sendMail(mailOptions);
         console.log("OTP Email sent:", info.messageId);
+        return { success: true };
     } catch (err) {
         console.error("Error sending OTP email:", err);
+        throw err;
     }
 }
 
@@ -194,8 +198,10 @@ async function sendRideAcceptedEmail({ customer, driver, ride, sourceAddress, de
         console.log("[EMAIL] Sending ride accepted email to driver:", driver.email);
         await transporter.sendMail(driverMailOptions);
         console.log("[EMAIL] ✅ Driver email sent");
+        return { success: true };
     } catch (err) {
         console.error("[EMAIL] ❌ Error sending ride accepted emails:", err);
+        throw err;
     }
 }
 
@@ -298,8 +304,10 @@ async function sendCancellationEmail({ customer, driver, ride, sourceAddress, de
             await transporter.sendMail(driverMailOptions);
             console.log("[EMAIL] ✅ Driver cancellation email sent");
         }
+        return { success: true };
     } catch (err) {
         console.error("[EMAIL] ❌ Error sending cancellation emails:", err);
+        throw err;
     }
 }
 

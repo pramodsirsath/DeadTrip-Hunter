@@ -20,7 +20,12 @@ module.exports.sendOtp = async function(req, res) {
         await OTP.create({ email, otp });
         
         // Send email
-        await sendOtpEmail(email, otp);
+        try {
+            await sendOtpEmail(email, otp);
+        } catch (emailError) {
+            console.error("Failed to send OTP:", emailError);
+            return res.status(500).json({ message: "Failed to send OTP email. Please try again later." });
+        }
 
         // Console for local testing if nodemon/server runs
         console.log("OTP GENERATED:", otp);
