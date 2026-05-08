@@ -5,7 +5,6 @@ const authRoutes = require("./routes/auth.routes");
 const rideRoutes = require("./routes/rideRoutes");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-const nodemailer = require("nodemailer");
 const geoRoutes = require("./routes/geoRoutes");
 const returnLoadRoute = require("./routes/returnLoadRoute");
 const adminRoutes = require("./routes/adminRoutes");
@@ -59,17 +58,6 @@ app.use("/admin", adminRoutes);
 
 app.use("/return", returnLoadRoute);
 // Ride + Live Tracking APIs
-
-// ✅ Mailer Config (optional, can move to utils/mailer.js)
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 // ✅ Single HTTP + Socket.io server
 const httpServer = createServer(app);
