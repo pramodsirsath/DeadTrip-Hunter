@@ -11,6 +11,12 @@ module.exports.sendOtp = async function(req, res) {
             return res.status(400).json({ message: "Email is required" });
         }
         
+        // 🛑 Check if user already exists BEFORE sending OTP
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: "User already exists with this email" });
+        }
+        
         // Remove old OTPs for this email just in case
         await OTP.deleteMany({ email });
 
