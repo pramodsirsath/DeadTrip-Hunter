@@ -38,14 +38,15 @@ const sendEmail = async (to, subject, htmlContent) => {
         const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
         const messageParts = [
             `From: "DeadTrip Hunter" <${process.env.SMTP_USER}>`,
-            `To: ${to}`,
+            `To: <${to.trim()}>`,
+            `Message-ID: <${Date.now()}-${Math.random().toString(36).substring(2)}@deadtrip.com>`,
             'Content-Type: text/html; charset=utf-8',
             'MIME-Version: 1.0',
             `Subject: ${utf8Subject}`,
             '',
             htmlContent,
         ];
-        const message = messageParts.join('\n');
+        const message = messageParts.join('\r\n');
 
         const encodedMessage = Buffer.from(message)
             .toString('base64')
@@ -193,8 +194,9 @@ async function sendRideAcceptedEmail({ customer, driver, ride, sourceAddress, de
         </div>
         `;
         
-        await sendEmail(customer.email, customerSubject, customerHtml);
-        console.log("[EMAIL] ✅ Customer email sent");
+        const customerPromise = sendEmail(customer.email, customerSubject, customerHtml)
+            .then(() => console.log("[EMAIL] ✅ Customer email sent"))
+            .catch(err => console.error("[EMAIL] ❌ Customer email failed:", err));
 
         console.log("[EMAIL] Sending ride accepted email to driver:", driver.email);
         const driverSubject = '✅ Ride Accepted — New Load Assignment!';
@@ -244,8 +246,11 @@ async function sendRideAcceptedEmail({ customer, driver, ride, sourceAddress, de
         </div>
         `;
 
-        await sendEmail(driver.email, driverSubject, driverHtml);
-        console.log("[EMAIL] ✅ Driver email sent");
+        const driverPromise = sendEmail(driver.email, driverSubject, driverHtml)
+            .then(() => console.log("[EMAIL] ✅ Driver email sent"))
+            .catch(err => console.error("[EMAIL] ❌ Driver email failed:", err));
+
+        await Promise.all([customerPromise, driverPromise]);
 
         return { success: true };
     } catch (err) {
@@ -299,8 +304,11 @@ async function sendCancellationEmail({ customer, driver, ride, sourceAddress, de
         </div>
         `;
 
-        await sendEmail(customer.email, customerSubject, customerHtml);
-        console.log("[EMAIL] ✅ Customer cancellation email sent");
+        const customerPromise = sendEmail(customer.email, customerSubject, customerHtml)
+            .then(() => console.log("[EMAIL] ✅ Customer cancellation email sent"))
+            .catch(err => console.error("[EMAIL] ❌ Customer cancellation email failed:", err));
+
+        const promises = [customerPromise];
 
         if (driver && driver.email) {
             console.log("[EMAIL] Sending cancellation email to driver:", driver.email);
@@ -337,9 +345,13 @@ async function sendCancellationEmail({ customer, driver, ride, sourceAddress, de
             </div>
             `;
 
-            await sendEmail(driver.email, driverSubject, driverHtml);
-            console.log("[EMAIL] ✅ Driver cancellation email sent");
+            const driverPromise = sendEmail(driver.email, driverSubject, driverHtml)
+                .then(() => console.log("[EMAIL] ✅ Driver cancellation email sent"))
+                .catch(err => console.error("[EMAIL] ❌ Driver cancellation email failed:", err));
+            promises.push(driverPromise);
         }
+
+        await Promise.all(promises);
 
         return { success: true };
     } catch (err) {
