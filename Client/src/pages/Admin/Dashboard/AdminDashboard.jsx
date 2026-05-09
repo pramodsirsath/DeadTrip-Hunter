@@ -98,7 +98,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const getDocUrl = (filename) => filename ? `${import.meta.env.VITE_BACKEND_URL}/uploads/${filename}` : null;
+  const getDocUrl = (filename) => {
+    if (!filename) return null;
+    if (filename.startsWith('http')) return filename;
+    return `${import.meta.env.VITE_BACKEND_URL}/uploads/${filename}`;
+  };
 
   return (
     <PageTransition>
