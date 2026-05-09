@@ -72,6 +72,15 @@ const io = new Server(httpServer, {
 // ✅ Pass Socket.io instance to controller
 socketController(io);
 
+// ✅ Global Error Handler (Returns JSON instead of HTML)
+app.use((err, req, res, next) => {
+  console.error("🔥 Global Error Caught:", err);
+  res.status(500).json({
+    message: "Internal Server Error",
+    error: err.message
+  });
+});
+
 httpServer.listen(3000, () => {
   console.log("🚀 Server + Socket.io running at http://localhost:3000");
   console.log("📡 Listening for live tracking events...");
