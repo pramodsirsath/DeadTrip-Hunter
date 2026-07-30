@@ -4,6 +4,8 @@ const { getHighWayRoute } = require("../services/routeService");
 const { createCorridor, isRideInsideCorridor ,checkDirectionToHome} = require("../services/corridorService");
 
 const {point} = require("@turf/helpers");  
+const getDistance = require("./requiredController");
+const predictProfit = require("../utils/predictProfit");
 
 exports.startReturnMode = async (req, res) => {
   console.log("Body received:", req.body);
@@ -82,11 +84,12 @@ exports.filterRidesInCorridor = async (req, res) => {
   const { rides } = req.body;
 
   const state = await DriverReturnState.findOne({ driverId });
-  const homeLocation = state.homeLocation.coordinates;
 
   if (!state) {
     return res.status(400).json({ error: "Driver not in return mode" });
   }
+
+  const homeLocation = state.homeLocation.coordinates;
 
   const validRides = rides.filter((ride, idx) => {
 
@@ -116,8 +119,39 @@ exports.filterRidesInCorridor = async (req, res) => {
     return pickupInside && dropInside && directionToHome;
   });
 
-  console.log("Filtered rides:", validRides.length);
-  res.json({ validRides });
+  const truckMileage = {
+    Container: 10,
+    Open: 8,
+    Trailer: 12,
+  };
+
+  const ridesWithProfit = await Promise.all(
+    validRides.map(async (ride) => {
+      const distance = await getDistance(ride.source, ride.destination);
+      const distanceKm = distance / 1000;
+      const mileage = truckMileage[ride.truckType] || 1;
+      const fuelConsumed = distanceKm / mileage;
+      const profitPrediction = await predictProfit({
+        distance: distanceKm,
+        fare: ride.fare,
+        fuel_price: 95,
+        mileage,
+        weight: parseFloat(ride.weight),
+      });
+
+      return {
+        ...ride,
+        distance: distanceKm,
+        mileage,
+        fuelConsumed,
+        profitPrediction,
+        predictedProfit: profitPrediction,
+      };
+    })
+  );
+
+  console.log("Filtered rides:", ridesWithProfit.length);
+  res.json({ validRides: ridesWithProfit });
 };
 
 exports.checkMapdata = async (req, res) => {

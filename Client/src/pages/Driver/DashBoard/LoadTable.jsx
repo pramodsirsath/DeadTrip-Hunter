@@ -1,6 +1,15 @@
 import { CheckCircle, MapPin, ArrowRight, Truck } from 'lucide-react';
 
 export default function LoadTable({ loads, onAccept }) {
+  const formatProfit = (ride) => {
+    const profit = ride.profitPrediction ?? ride.predictedProfit;
+    const numericProfit = Number(profit);
+
+    if (!Number.isFinite(numericProfit)) return "-";
+
+    return `Rs. ${Math.round(numericProfit)}`;
+  };
+
   if (loads.length === 0) {
     return (
       <div style={{
@@ -27,6 +36,7 @@ export default function LoadTable({ loads, onAccept }) {
             <th>Weight</th>
             <th>Fare</th>
             <th className="hide-mobile">Details</th>
+            <th>Approx Profit</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -62,6 +72,10 @@ export default function LoadTable({ loads, onAccept }) {
               }}>
                 {ride.loadDetails}
               </td>
+              <td style={{ fontWeight: '600', color: 'var(--success)' }}>
+                {formatProfit(ride)}
+              </td>
+              
               <td>
                 <button
                   className="btn btn-primary"

@@ -8,6 +8,10 @@ const cors = require("cors");
 const geoRoutes = require("./routes/geoRoutes");
 const returnLoadRoute = require("./routes/returnLoadRoute");
 const adminRoutes = require("./routes/adminRoutes");
+const feedbackRoutes = require("./routes/feedbackRoutes");
+
+
+// cron use for to perform any tast at a specifi time or interval
 
 const reservationRoutes = require("./routes/reservationRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
@@ -42,7 +46,8 @@ dotenv.config();
 console.log("URL:", process.env.MONGODB_URL); // debug
 connectDB();
 
-
+const cron = require("node-cron");
+const trainModel = require("./ML/daily_train");
 // ✅ Middlewares
 
 
@@ -57,6 +62,7 @@ app.use("/geo", geoRoutes);
 app.use("/admin", adminRoutes);
 
 app.use("/return", returnLoadRoute);
+app.use("/feedback", feedbackRoutes);
 // Ride + Live Tracking APIs
 
 // ✅ Single HTTP + Socket.io server
@@ -79,6 +85,11 @@ app.use((err, req, res, next) => {
     message: "Internal Server Error",
     error: err.message
   });
+});
+
+cron.schedule("0 2 * * *",()=>{
+  console.log("Running daily training at 2 AM");
+  trainModel();
 });
 
 httpServer.listen(3000, () => {

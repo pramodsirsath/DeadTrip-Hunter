@@ -3,10 +3,10 @@ const User = require('../models/user');
 const RideReservation = require("../models/RideReservation");
 const { sendCancellationEmail } = require('../services/email.service');
 const axios = require('axios');
-
+const getDistance = require('../controllers/requiredController');
 // ✅ Create Ride (customer posts a load)
 const sendNotification = require("../utils/sendNotification");
-
+const predictProfit = require("../utils/predictProfit");
 const formatGoogleAddress = require("../utils/formatAddress");
 
 // Helper: reverse geocode coordinates to address string
@@ -437,35 +437,75 @@ module.exports.getFilterPendingRides = async (req, res) => {
   try {
     const { lat, lng } = req.body;
 
-    // 1️⃣ Get all active reservations
+    // Reserved ride IDs
     const activeReservations = await RideReservation.find({
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: new Date() },
     }).select("rideId");
 
-    // Extract ride IDs that are reserved
-    const reservedRideIds = activeReservations.map(r => r.rideId);
+    const reservedRideIds = activeReservations.map(
+      (reservation) => reservation.rideId
+    );
 
-    // 2️⃣ Find nearby rides that are NOT reserved
+    // Nearby pending rides
     const rides = await Ride.find({
       status: "pending",
-      _id: { $nin: reservedRideIds }, // 🔥 exclude reserved rides
+      _id: { $nin: reservedRideIds },
       source: {
         $near: {
           $geometry: {
             type: "Point",
-            coordinates: [lng, lat] // lng first
+            coordinates: [lng, lat],
           },
-          $maxDistance: 50000
-        }
-      }
+          $maxDistance: 50000,
+        },
+      },
     });
 
-    res.json(rides);
+    // Truck mileage (km/L)
+    const truckMileage = {
+      Container: 10,
+      Open: 8,
+      Trailer: 12,
+    };
 
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: "Failed to fetch nearby rides" });
-  }
+    const ridesWithDetails = await Promise.all(
+      rides.map(async (ride) => {
+        const distance = await getDistance(ride.source, ride.destination); // meters
+
+        const mileage = truckMileage[ride.truckType] || 1;
+
+        const distanceKm = distance / 1000;
+
+        const fuelConsumed = distanceKm / mileage;
+
+        const profitPrediction = await predictProfit({
+          distance: distanceKm,
+          fare: ride.fare,
+          fuel_price: 95, // Replace with dynamic fuel price if available
+          mileage,
+          weight: parseFloat(ride.weight),
+        });
+
+        return {
+          ...ride.toObject(),
+          distance: distanceKm,
+          mileage,
+          fuelConsumed,
+          profitPrediction,
+          predictedProfit: profitPrediction,
+        };
+      })
+    );
+
+    res.status(200).json(ridesWithDetails);
+  }catch (err) {
+  console.error("getFilterPendingRides Error:", err);
+
+  res.status(500).json({
+    message: err.message,
+    stack: err.stack
+  });
+}
 };
 
 module.exports.getAcceptedRides = async (req, res) => {

@@ -227,6 +227,8 @@ export default function DriverDashboard() {
       if (!res.ok) throw new Error(data.error || "Failed to end ride");
       toast("Ride completed successfully!", "success");
       fetchAccepted(user._id);
+
+      return true;
     } catch (err) {
       toast(err.message, "error");
     }
