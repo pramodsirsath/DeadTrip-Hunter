@@ -25,6 +25,7 @@ y_pred =model.predict(X_test)
 accuracy = r2_score(y_test,y_pred)
 mean_absolute_error = mean_absolute_error(y_test , y_pred)
 
-
+print(f"Model Accuracy (R^2 Score): {accuracy}")
+print(f"Mean Absolute Error: {mean_absolute_error}")
 joblib.dump(model, os.path.join(os.path.dirname(__file__), "model.pkl"))
 print("Model trained and saved successfully.")
