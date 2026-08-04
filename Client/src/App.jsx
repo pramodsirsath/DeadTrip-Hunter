@@ -15,7 +15,6 @@ import Navbar from './components/Navbar/Navbar';
 import AdminDashboard from './pages/Admin/Dashboard/AdminDashboard';
 
 import TrackRide from './pages/TrackRide';
-import 'leaflet/dist/leaflet.css';
 import './App.css'
 import { useEffect } from 'react';
 import axios from "axios";

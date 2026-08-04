@@ -1,5 +1,7 @@
 const express = require("express");
 const dotenv = require("dotenv");
+dotenv.config();
+
 const connectDB = require("./config/userdb");
 const authRoutes = require("./routes/auth.routes");
 const rideRoutes = require("./routes/rideRoutes");
@@ -18,7 +20,9 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const { stripeWebhook } = require("./controllers/paymentController");
 
 const app = express();
-const frontendUrl = (process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173").replace(/\/$/, "");
+const frontendUrl = (process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173")
+  .trim()
+  .replace(/\/$/, "");
 
 app.use(
   cors({
@@ -42,7 +46,6 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 const socketController = require("./controllers/socketController");
 
-dotenv.config();
 console.log("URL:", process.env.MONGODB_URL); // debug
 connectDB();
 

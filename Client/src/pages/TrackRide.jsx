@@ -22,6 +22,9 @@ export default function TrackRide() {
   const [destination, setDestination] = useState(null);
   const [routeCoords, setRouteCoords] = useState([]);
   
+  const isValidPosition = (value) =>
+    value && typeof value.lat === "number" && typeof value.lng === "number";
+  
   // Navigation Mode States
   const [isDrivingMode, setIsDrivingMode] = useState(false);
   const [heading, setHeading] = useState(0);
@@ -108,17 +111,24 @@ export default function TrackRide() {
     fetchRoute();
   }, [driverLocation, source, destination]);
 
+  const hasValidSource = isValidPosition(source);
+  const hasValidDestination = isValidPosition(destination);
+  const hasValidDriverLocation = isValidPosition(driverLocation);
+  const safeRouteCoords = Array.isArray(routeCoords)
+    ? routeCoords.filter((point) => point && typeof point.lat === "number" && typeof point.lng === "number")
+    : [];
+
   return (
     <div style={{
       width: '100%',
       height: 'calc(100vh - 64px)',
       position: 'relative',
     }}>
-      {isLoaded && source && destination ? (
+      {isLoaded && hasValidSource && hasValidDestination ? (
         <>
           <GoogleMap
             mapContainerStyle={mapContainerStyle}
-            center={driverLocation || source}
+            center={hasValidDriverLocation ? driverLocation : source}
             zoom={isDrivingMode ? 17 : 7}
             heading={isDrivingMode ? heading : 0}
             tilt={isDrivingMode ? 60 : 0}
@@ -129,10 +139,10 @@ export default function TrackRide() {
               zoomControl: !isDrivingMode
             }}
           >
-            <Marker position={source} icon={{ url: SourceIconUrl, scaledSize: isLoaded ? new window.google.maps.Size(40, 40) : null }} />
-            <Marker position={destination} icon={{ url: DestinationIconUrl, scaledSize: isLoaded ? new window.google.maps.Size(40, 40) : null }} />
-            {driverLocation && <Marker position={driverLocation} icon={{ url: driverIconUrl, scaledSize: isLoaded ? new window.google.maps.Size(40, 40) : null }} />}
-            {routeCoords.length > 0 && <Polyline path={routeCoords} options={{ strokeColor: "#3b82f6", strokeWeight: 4, strokeOpacity: 0.8 }} />}
+            {hasValidSource && <Marker position={source} icon={{ url: SourceIconUrl, scaledSize: isLoaded ? new window.google.maps.Size(40, 40) : null }} />}
+            {hasValidDestination && <Marker position={destination} icon={{ url: DestinationIconUrl, scaledSize: isLoaded ? new window.google.maps.Size(40, 40) : null }} />}
+            {hasValidDriverLocation && <Marker position={driverLocation} icon={{ url: driverIconUrl, scaledSize: isLoaded ? new window.google.maps.Size(40, 40) : null }} />}
+            {safeRouteCoords.length > 0 && <Polyline path={safeRouteCoords} options={{ strokeColor: "#3b82f6", strokeWeight: 4, strokeOpacity: 0.8 }} />}
           </GoogleMap>
 
           {/* Overlay Header */}

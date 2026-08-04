@@ -12,25 +12,32 @@ export default function CheckMap({ data }) {
 
   const [activeMarker, setActiveMarker] = useState(null);
 
+  const isValidCoordinatePair = (value) =>
+    Array.isArray(value) && value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number";
+
   if (!data || !data.currentLocation || !data.homeLocation || !data.route || !data.corridor) {
     console.log(data);
     return <p>Loading map data...</p>;
   }
 
-  const current = { lat: data.currentLocation.coordinates[1], lng: data.currentLocation.coordinates[0] };
-  const home = { lat: data.homeLocation.coordinates[1], lng: data.homeLocation.coordinates[0] };
+  const current = isValidCoordinatePair(data.currentLocation?.coordinates)
+    ? { lat: data.currentLocation.coordinates[1], lng: data.currentLocation.coordinates[0] }
+    : null;
+  const home = isValidCoordinatePair(data.homeLocation?.coordinates)
+    ? { lat: data.homeLocation.coordinates[1], lng: data.homeLocation.coordinates[0] }
+    : null;
   
   let routePath = [];
-  if (data.route.coordinates) {
-    routePath = data.route.coordinates.map(coord => ({ lat: coord[1], lng: coord[0] }));
+  if (Array.isArray(data.route?.coordinates)) {
+    routePath = data.route.coordinates.filter(isValidCoordinatePair).map(coord => ({ lat: coord[1], lng: coord[0] }));
   }
 
   let corridorPath = [];
-  if (data.corridor.coordinates && data.corridor.coordinates[0]) {
-    corridorPath = data.corridor.coordinates[0].map(coord => ({ lat: coord[1], lng: coord[0] }));
+  if (Array.isArray(data.corridor?.coordinates) && Array.isArray(data.corridor.coordinates[0])) {
+    corridorPath = data.corridor.coordinates[0].filter(isValidCoordinatePair).map(coord => ({ lat: coord[1], lng: coord[0] }));
   }
 
-  if (!isLoaded) return <p>Loading map...</p>;
+  if (!isLoaded || !current || !home) return <p>Loading map data...</p>;
 
   return (
     <GoogleMap

@@ -65,6 +65,9 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
 
   const [homeLocation, setHomeLocation] = useState(null);
   const [mapCenter, setMapCenter] = useState({ lat: 20.5937, lng: 78.9629 });
+  const validHomeLocation = homeLocation && typeof homeLocation.lat === "number" && typeof homeLocation.lng === "number"
+    ? homeLocation
+    : null;
   const [mapZoom, setMapZoom] = useState(5);
   const mapRef = useRef(null);
 
@@ -150,8 +153,8 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
               onClick={onMapClick}
               options={{ streetViewControl: false, mapTypeControl: false }}
             >
-              {homeLocation && (
-                <Marker position={homeLocation} />
+              {validHomeLocation && (
+                <Marker position={validHomeLocation} />
               )}
             </GoogleMap>
           ) : (
@@ -213,12 +216,12 @@ export default function HomeLocationMap({ onConfirm, onCancel, loading }) {
             Cancel
           </button>
           <button
-            onClick={() => onConfirm(homeLocation)}
-            disabled={!homeLocation || loading}
+            onClick={() => onConfirm(validHomeLocation)}
+            disabled={!validHomeLocation || loading}
             className="btn btn-primary"
             style={{
-              opacity: (!homeLocation || loading) ? 0.5 : 1,
-              cursor: (!homeLocation || loading) ? 'not-allowed' : 'pointer',
+              opacity: (!validHomeLocation || loading) ? 0.5 : 1,
+              cursor: (!validHomeLocation || loading) ? 'not-allowed' : 'pointer',
             }}
           >
             {loading ? (

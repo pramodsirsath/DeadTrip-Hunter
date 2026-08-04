@@ -1,11 +1,12 @@
 const { execFile } = require("child_process");
 const path = require("path");
+const pythonExecutable = process.env.PYTHON || "/opt/venv/bin/python";
 
 function predictProfit(features) {
     return new Promise((resolve, reject) => {
 
         execFile(
-            "python",
+            pythonExecutable,
             [
                 path.join(__dirname, "../ML/predict.py"),
                 JSON.stringify(features)

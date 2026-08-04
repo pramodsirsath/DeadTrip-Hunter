@@ -435,7 +435,16 @@ module.exports.getPendingRides = async (req, res) => {
 
 module.exports.getFilterPendingRides = async (req, res) => {
   try {
+    if (!req.body || typeof req.body !== 'object') {
+      console.error('getFilterPendingRides invalid body:', req.body);
+      return res.status(400).json({ error: 'Request body must be a JSON object with lat and lng.' });
+    }
+
     const { lat, lng } = req.body;
+    if (typeof lat !== 'number' || typeof lng !== 'number') {
+      console.error('getFilterPendingRides missing/invalid lat/lng:', req.body);
+      return res.status(400).json({ error: 'lat and lng must be numbers.' });
+    }
 
     // Reserved ride IDs
     const activeReservations = await RideReservation.find({
